@@ -1,23 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Header } from './components/Header';
-import { MetricCard } from './components/MetricCard';
-import { ActuatorMatrix } from './components/ActuatorMatrix';
-import { TelemetryChart } from './components/TelemetryChart';
-import { AlarmsFeed } from './components/AlarmsFeed';
-import { SetpointsModal } from './components/SetpointsModal';
 import { PhoneAppView } from './components/PhoneAppView';
-import { Sidebar, type ScadaTab } from './components/Sidebar';
-import { FarmDesigner } from './components/FarmDesigner';
-import { FarmOutputAnalytics } from './components/FarmOutputAnalytics';
-import { DoseSuggestions } from './components/DoseSuggestions';
+import { FarmOSControlCenter } from './components/FarmOSControlCenter';
+import { SetpointsModal } from './components/SetpointsModal';
 import { useFarmWebSocket } from './hooks/useFarmWebSocket';
 import type { ZoneSetpoint } from '@autogrow/shared';
 
 export default function App() {
-  const { metrics, actuators, active_alarms, setpoint, connectionStatus, lastUpdated } = useFarmWebSocket();
+  const { metrics, actuators, active_alarms, setpoint, connectionStatus } = useFarmWebSocket();
   const [isSetpointsOpen, setIsSetpointsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop'>('desktop');
-  const [currentTab, setCurrentTab] = useState<ScadaTab>('matrix');
   const [isMobileScreen, setIsMobileScreen] = useState(false);
 
   useEffect(() => {
@@ -46,7 +37,7 @@ export default function App() {
       duration_sec: durationSec,
       issued_by: 'operator-dashboard-manual',
       created_at: new Date(now).toISOString(),
-      expires_at: new Date(now + 10000).toISOString() // 10 second expiry
+      expires_at: new Date(now + 10000).toISOString()
     };
 
     try {
@@ -59,19 +50,6 @@ export default function App() {
     } catch (e) {
       console.error('[Command Send Failed]', e);
       return false;
-    }
-  };
-
-  // Software Emergency Pause
-  const handleEmergencyPause = async () => {
-    const host = window.location.hostname || 'localhost';
-    if (host.includes('github.io') || host.includes('vercel.app')) {
-      return;
-    }
-    try {
-      await fetch(`http://${host}:8080/api/emergency-pause`, { method: 'POST' });
-    } catch (e) {
-      console.error('[Pause Failed]', e);
     }
   };
 
@@ -105,7 +83,7 @@ export default function App() {
     }
   };
 
-  // If user opens directly on a physical phone screen, render full-bleed mobile UI directly
+  // If user opens directly on a physical smartphone screen, render full-bleed mobile UI directly
   if (isMobileScreen) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#FFFFFF' }}>
@@ -129,146 +107,61 @@ export default function App() {
     );
   }
 
+  // Desktop or Tablet Browser: Show either WarehouseOS-style Farm 3D Digital Twin or Mobile Simulator
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-primary)' }}>
-      {/* SCADA Header */}
-      <Header
-        farmId="farm-akl-001"
-        zoneName="Venlo Bay 1 (Tomatoes)"
-        connectionStatus={connectionStatus}
-        lastUpdated={lastUpdated}
-        viewMode={viewMode}
-        onToggleViewMode={setViewMode}
-        onOpenSetpoints={() => setIsSetpointsOpen(true)}
-        onEmergencyPause={handleEmergencyPause}
-      />
-
+    <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
       {viewMode === 'mobile' ? (
-        /* Mobile App View with scaling studio and flanking telemetry cards */
-        <main style={{ flex: 1, padding: '24px', maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
-          <section style={{ padding: '16px 0 32px' }}>
-            <PhoneAppView
-              metrics={metrics}
-              actuators={actuators}
-              active_alarms={active_alarms}
-              setpoint={setpoint}
-              connectionStatus={connectionStatus}
-              onTriggerCommand={handleTriggerCommand}
-              onAcknowledgeAlarm={handleAcknowledgeAlarm}
-              isStandaloneMobile={false}
-            />
-          </section>
+        /* Mobile App View with studio frame and toggle back to 3D Digital Twin */
+        <main style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto' }}>
+          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button
+              onClick={() => setViewMode('desktop')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                backgroundColor: '#0F172A',
+                color: '#FFFFFF',
+                borderRadius: '8px',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: 'pointer'
+              }}
+            >
+              ← Back to FarmOS 3D Digital Twin Map
+            </button>
+            <span style={{ fontSize: '12px', color: '#64748B' }}>
+              Autogrow Mobile App v3.0 Preview Mode
+            </span>
+          </div>
+
+          <PhoneAppView
+            metrics={metrics}
+            actuators={actuators}
+            active_alarms={active_alarms}
+            setpoint={setpoint}
+            connectionStatus={connectionStatus}
+            onTriggerCommand={handleTriggerCommand}
+            onAcknowledgeAlarm={handleAcknowledgeAlarm}
+            isStandaloneMobile={false}
+          />
         </main>
       ) : (
-        /* Desktop SCADA Suite with Sidebar Navigation */
-        <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - 61px)' }}>
-          {/* Farm Management Sidebar */}
-          <Sidebar
-            currentTab={currentTab}
-            onSelectTab={setCurrentTab}
-            viewMode={viewMode}
-            onToggleViewMode={setViewMode}
-            onOpenSetpoints={() => setIsSetpointsOpen(true)}
-            activeAlarmsCount={active_alarms.length}
-            connectionStatus={connectionStatus}
-          />
-
-          {/* Dynamic Content Area */}
-          <main style={{ flex: 1, padding: '24px', overflowY: 'auto', backgroundColor: 'var(--bg-primary)' }}>
-            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-              {currentTab === 'matrix' && (
-                <>
-                  {/* Core CEA Metrics Strip */}
-                  <section style={{ marginBottom: '24px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-                      <MetricCard
-                        metricKey="ec"
-                        value={metrics.ec}
-                        target={setpoint?.target_ec}
-                        deadband={setpoint?.ec_deadband}
-                      />
-                      <MetricCard
-                        metricKey="ph"
-                        value={metrics.ph}
-                        target={setpoint?.target_ph}
-                        deadband={setpoint?.ph_deadband}
-                      />
-                      <MetricCard
-                        metricKey="vpd"
-                        value={metrics.vpd}
-                        target={setpoint?.target_vpd}
-                        deadband={0.25}
-                      />
-                      <MetricCard
-                        metricKey="vwc"
-                        value={metrics.vwc}
-                        target={setpoint?.target_vwc_irrigation}
-                        deadband={5.0}
-                      />
-                      <MetricCard
-                        metricKey="temp_air"
-                        value={metrics.temp_air}
-                        target={setpoint?.target_temp_day}
-                        deadband={1.5}
-                      />
-                      <MetricCard
-                        metricKey="humidity"
-                        value={metrics.humidity}
-                        deadband={5.0}
-                      />
-                      <MetricCard
-                        metricKey="ppfd"
-                        value={metrics.ppfd}
-                      />
-                      <MetricCard
-                        metricKey="water_temp"
-                        value={metrics.water_temp}
-                        target={20.0}
-                        deadband={2.0}
-                      />
-                    </div>
-                  </section>
-
-                  {/* Telemetry Chart & Actuators Control Grid */}
-                  <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      <ActuatorMatrix
-                        actuators={actuators}
-                        onTriggerCommand={handleTriggerCommand}
-                      />
-                      <AlarmsFeed
-                        alarms={active_alarms}
-                        onAcknowledgeAlarm={handleAcknowledgeAlarm}
-                      />
-                    </div>
-
-                    <div>
-                      <TelemetryChart currentMetricValues={metrics} />
-                    </div>
-                  </section>
-                </>
-              )}
-
-              {currentTab === 'designer' && (
-                <FarmDesigner
-                  metrics={metrics}
-                  onTriggerActuator={handleTriggerCommand}
-                />
-              )}
-
-              {currentTab === 'output' && (
-                <FarmOutputAnalytics />
-              )}
-
-              {currentTab === 'suggestions' && (
-                <DoseSuggestions
-                  currentSetpoint={setpoint}
-                  onApplySetpoints={handleSaveSetpoint}
-                />
-              )}
-            </div>
-          </main>
-        </div>
+        /* Full Farm Digital Twin Control Center (WarehouseOS Style with 1x1 Tile Grid) */
+        <FarmOSControlCenter
+          metrics={metrics}
+          actuators={actuators}
+          active_alarms={active_alarms}
+          setpoint={setpoint}
+          connectionStatus={connectionStatus}
+          onToggleViewMode={setViewMode}
+          onOpenSetpoints={() => setIsSetpointsOpen(true)}
+          onTriggerCommand={handleTriggerCommand}
+          onSaveSetpoint={handleSaveSetpoint}
+          onAcknowledgeAlarm={handleAcknowledgeAlarm}
+        />
       )}
 
       {/* Setpoints Dialog Modal */}
