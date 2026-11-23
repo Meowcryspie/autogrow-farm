@@ -18,6 +18,16 @@ autogrow-farm/
 
 ---
 
+## 📱 Mobile App Versions Across the Autogrow Ecosystem
+
+| Version | Repository | Live Public / Local Link | Key Focus & Highlights |
+| :--- | :--- | :--- | :--- |
+| **v1.0** (Legacy Prototype) | [`Meowcryspie/farmgrow`](https://github.com/Meowcryspie/farmgrow) | 👉 [farmgrow.github.io](https://meowcryspie.github.io/farmgrow/) | Original 2.5D Isometric 3D farm graphics (peaked greenhouses, gutter beds), customer onboarding, and radial EC meter. |
+| **v2.0** (Marketing Studio) | [`Meowcryspie/autogrow-web`](https://github.com/Meowcryspie/autogrow-web) | 👉 [autogrow-web.github.io/#app](https://meowcryspie.github.io/autogrow-web/#app) | TrolMaster-style mobile scaling studio with crop stage presets (Seedling/Veg/Bloom/Peak) and device pairing showcase. |
+| **v3.0** (Unified Live SCADA) | [`Meowcryspie/autogrow-farm`](https://github.com/Meowcryspie/autogrow-farm) | 👉 `http://localhost:8080/` *(Local/LAN)* | **Current Active Platform**: Combines 3D models with real-time Edge WebSockets (`/ws`), SQLite WAL database, 4-pump dosing control, and sub-second sensor streaming. |
+
+---
+
 ## ✨ Features
 
 - **Local-First Edge Reliability**: Powered by Node 22 native `node:sqlite` in WAL mode. Closed-loop nutrient dosing, irrigation valves, and safety interlocks run 24/7 on-site without requiring active internet connectivity.

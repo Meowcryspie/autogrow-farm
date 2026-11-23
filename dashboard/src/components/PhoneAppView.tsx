@@ -210,6 +210,46 @@ export const PhoneAppView: React.FC<PhoneAppViewProps> = ({
               Add a device
             </button>
 
+            {/* App Versions Quick Switcher */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E5E7EB',
+              padding: '8px 12px',
+              borderRadius: '10px',
+              fontSize: '11px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}>
+              <span style={{ color: '#6B7280', fontWeight: 600 }}>Mobile Versions:</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <a
+                  href="https://meowcryspie.github.io/farmgrow/"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Version 1: Legacy Farmgrow"
+                  style={{ color: '#15803D', fontWeight: 700, textDecoration: 'none' }}
+                >
+                  v1.0 Farmgrow ↗
+                </a>
+                <span style={{ color: '#D1D5DB' }}>·</span>
+                <a
+                  href="https://meowcryspie.github.io/autogrow-web/#app"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Version 2: Web Scaler"
+                  style={{ color: '#15803D', fontWeight: 700, textDecoration: 'none' }}
+                >
+                  v2.0 Web ↗
+                </a>
+                <span style={{ color: '#D1D5DB' }}>·</span>
+                <span style={{ color: '#111827', fontWeight: 800 }}>
+                  v3.0 Live Edge
+                </span>
+              </div>
+            </div>
+
             {/* 3 Summary KPI Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
               <div style={{ backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '10px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
@@ -897,7 +937,7 @@ export const PhoneAppView: React.FC<PhoneAppViewProps> = ({
     }}>
       {/* Viewport Control Bar */}
       <div style={{
-        maxWidth: '560px',
+        maxWidth: '740px',
         width: '100%',
         backgroundColor: '#1E293B',
         border: '1px solid #334155',
@@ -911,10 +951,64 @@ export const PhoneAppView: React.FC<PhoneAppViewProps> = ({
         gap: '12px',
         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Smartphone size={15} color="#76b82a" />
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#F8FAFC' }}>
             Phone Simulator
+          </span>
+        </div>
+
+        {/* Mobile Versions Direct Links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Versions:</span>
+          <a
+            href="https://meowcryspie.github.io/farmgrow/"
+            target="_blank"
+            rel="noreferrer"
+            title="Version 1: Legacy Farmgrow"
+            style={{
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 700,
+              backgroundColor: '#0F172A',
+              color: '#94A3B8',
+              border: '1px solid #334155',
+              textDecoration: 'none'
+            }}
+          >
+            v1.0 Farmgrow ↗
+          </a>
+          <a
+            href="https://meowcryspie.github.io/autogrow-web/#app"
+            target="_blank"
+            rel="noreferrer"
+            title="Version 2: Web Scaler"
+            style={{
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 700,
+              backgroundColor: '#0F172A',
+              color: '#94A3B8',
+              border: '1px solid #334155',
+              textDecoration: 'none'
+            }}
+          >
+            v2.0 Web ↗
+          </a>
+          <span
+            style={{
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 700,
+              backgroundColor: '#15803D',
+              color: '#FFFFFF',
+              border: '1px solid #76b82a',
+            }}
+          >
+            v3.0 Live Edge
           </span>
         </div>
 

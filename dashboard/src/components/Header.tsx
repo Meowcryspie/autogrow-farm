@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wifi, WifiOff, OctagonAlert, Sliders, RefreshCw, Smartphone, Monitor } from 'lucide-react';
+import { Wifi, WifiOff, OctagonAlert, Sliders, RefreshCw, Smartphone, Monitor, ExternalLink } from 'lucide-react';
 
 interface HeaderProps {
   farmId: string;
@@ -84,57 +84,138 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Center: View Switcher (Mobile Phone vs Desktop SCADA) */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-        backgroundColor: 'var(--bg-primary)',
-        padding: '4px',
-        borderRadius: '8px',
-        border: '1px solid var(--border-hairline)'
-      }}>
-        <button
-          onClick={() => onToggleViewMode('mobile')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            backgroundColor: viewMode === 'mobile' ? 'var(--bg-surface-elevated)' : 'transparent',
-            border: viewMode === 'mobile' ? '1px solid var(--border-subtle)' : '1px solid transparent',
-            borderRadius: '6px',
-            color: viewMode === 'mobile' ? '#10B981' : 'var(--text-dim)',
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Smartphone size={14} />
-          <span>Mobile App View</span>
-        </button>
+      {/* Center: View Switcher & App Versions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        {/* App Versions Navigation */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          backgroundColor: 'var(--bg-primary)',
+          padding: '4px 8px',
+          borderRadius: '8px',
+          border: '1px solid var(--border-hairline)'
+        }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+            App Versions:
+          </span>
+          <a
+            href="https://meowcryspie.github.io/farmgrow/"
+            target="_blank"
+            rel="noreferrer"
+            title="Version 1: Legacy Farmgrow (3D Isometric Overview)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '4px',
+              color: 'var(--text-dim)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              textDecoration: 'none',
+              transition: 'color 0.15s ease'
+            }}
+          >
+            v1.0 Farmgrow <ExternalLink size={10} />
+          </a>
+          <a
+            href="https://meowcryspie.github.io/autogrow-web/#app"
+            target="_blank"
+            rel="noreferrer"
+            title="Version 2: Web Studio Scaler (Preview & Pairing)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '4px',
+              color: 'var(--text-dim)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              textDecoration: 'none',
+              transition: 'color 0.15s ease'
+            }}
+          >
+            v2.0 Web Scaler <ExternalLink size={10} />
+          </a>
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid #10B981',
+              borderRadius: '4px',
+              color: '#10B981',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+            }}
+          >
+            v3.0 Live Edge
+          </span>
+        </div>
 
-        <button
-          onClick={() => onToggleViewMode('desktop')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            backgroundColor: viewMode === 'desktop' ? 'var(--bg-surface-elevated)' : 'transparent',
-            border: viewMode === 'desktop' ? '1px solid var(--border-subtle)' : '1px solid transparent',
-            borderRadius: '6px',
-            color: viewMode === 'desktop' ? '#10B981' : 'var(--text-dim)',
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Monitor size={14} />
-          <span>Desktop SCADA Matrix</span>
-        </button>
+        {/* View Switcher (Mobile Phone vs Desktop SCADA) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          backgroundColor: 'var(--bg-primary)',
+          padding: '4px',
+          borderRadius: '8px',
+          border: '1px solid var(--border-hairline)'
+        }}>
+          <button
+            onClick={() => onToggleViewMode('mobile')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              backgroundColor: viewMode === 'mobile' ? 'var(--bg-surface-elevated)' : 'transparent',
+              border: viewMode === 'mobile' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+              borderRadius: '6px',
+              color: viewMode === 'mobile' ? '#10B981' : 'var(--text-dim)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Smartphone size={14} />
+            <span>Mobile App View</span>
+          </button>
+
+          <button
+            onClick={() => onToggleViewMode('desktop')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              backgroundColor: viewMode === 'desktop' ? 'var(--bg-surface-elevated)' : 'transparent',
+              border: viewMode === 'desktop' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+              borderRadius: '6px',
+              color: viewMode === 'desktop' ? '#10B981' : 'var(--text-dim)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Monitor size={14} />
+            <span>Desktop SCADA Matrix</span>
+          </button>
+        </div>
       </div>
 
       {/* Network Status & Quick Actions */}
