@@ -33,8 +33,34 @@ export function useFarmWebSocket() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const connect = useCallback(() => {
-    // Connect to edge daemon on same host or localhost:8080
     const host = window.location.hostname || 'localhost';
+    
+    // Cloud Demo Mode on GitHub Pages or static host without local daemon
+    if (host.includes('github.io') || host.includes('vercel.app')) {
+      setTelemetry(prev => ({ ...prev, connectionStatus: 'CONNECTED' }));
+      const interval = setInterval(() => {
+        setTelemetry(prev => {
+          const jitterEC = Number((prev.metrics.ec + (Math.random() * 0.04 - 0.02)).toFixed(2));
+          const jitterPH = Number((prev.metrics.ph + (Math.random() * 0.02 - 0.01)).toFixed(2));
+          const jitterTemp = Number((prev.metrics.temp_air + (Math.random() * 0.2 - 0.1)).toFixed(1));
+          return {
+            ...prev,
+            metrics: {
+              ...prev.metrics,
+              ec: Math.max(1.5, Math.min(2.5, jitterEC)),
+              ph: Math.max(5.6, Math.min(6.2, jitterPH)),
+              temp_air: jitterTemp,
+              co2: Math.round(750 + Math.random() * 30),
+              vwc: Number((64.0 + Math.random() * 0.8).toFixed(1)),
+            },
+            lastUpdated: new Date().toISOString(),
+            connectionStatus: 'CONNECTED'
+          };
+        });
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+
     const wsUrl = `ws://${host}:8080/ws`;
 
     try {
