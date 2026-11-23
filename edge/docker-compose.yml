@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Local Farm MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: autogrow-edge-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883" # Standard MQTT
+      - "8083:8083" # WebSocket MQTT for Local Browser
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+
+  # Edge Daemon & SCADA Web Engine
+  edge-worker:
+    build:
+      context: ..
+      dockerfile: edge/Dockerfile
+    container_name: autogrow-edge-daemon
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Local REST API & Real-time Web Dashboard
+    volumes:
+      - edge-data:/app/edge/data
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - FARM_ID=nz-akl-001
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+    depends_on:
+      - mosquitto
+
+volumes:
+  mosquitto-data:
+  edge-data:

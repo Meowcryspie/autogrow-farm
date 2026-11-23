@@ -1,0 +1,29 @@
+{
+  "name": "autogrow-farm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Autogrow Farm Ecosystem Monorepo: Shared Contracts, Edge Engine, and Farm Dashboard",
+  "workspaces": [
+    "shared",
+    "edge",
+    "dashboard"
+  ],
+  "scripts": {
+    "build:shared": "npm --workspace=shared run build",
+    "build": "npm --workspace=shared run build && npm --workspace=dashboard run build",
+    "dev:edge": "npm --workspace=edge run dev",
+    "dev:dashboard": "npm --workspace=dashboard run dev",
+    "start": "npm --workspace=edge run start"
+  },
+  "keywords": [
+    "autogrow",
+    "cea",
+    "agtech",
+    "iot",
+    "greenhouse-automation",
+    "mqtt",
+    "scada"
+  ],
+  "author": "Autogrow Systems",
+  "license": "UNLICENSED"
+}
