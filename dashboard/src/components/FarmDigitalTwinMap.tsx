@@ -2101,7 +2101,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
           <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
-            Zones · {currentFarm.name.split(' ')[0]}
+            Facilities · {currentFarm.name.split(' ')[0]}
           </span>
         </div>
         <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '12px' }}>

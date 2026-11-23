@@ -8,6 +8,7 @@ import {
   Droplet, 
   ChevronRight, 
   ChevronLeft,
+  ChevronDown,
   Sparkles, 
   Flame, 
   TrendingUp,
@@ -48,7 +49,6 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
 }) => {
   // Navigation tabs (Unified: Overview is combined with 3D map)
   const [navTab, setNavTab] = useState<'map' | 'controllers' | 'harvest' | 'analytics'>('map');
-  const [activeZoneTab, setActiveZoneTab] = useState<'all' | 'glasshouses' | 'hydro'>('all');
   const [selectedStruct, setSelectedStruct] = useState<TileStructure | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -149,85 +149,6 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
           >
             {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </button>
-        </div>
-
-        {/* Multi-Farm Selector in Left Sidebar */}
-        <div style={{
-          padding: isSidebarOpen ? '14px 12px' : '10px 8px',
-          borderBottom: '1px solid #1E293B'
-        }}>
-          {isSidebarOpen ? (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748B', letterSpacing: '0.05em' }}>
-                  FARM LOCATIONS ({FARMS_DATA.length})
-                </span>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button onClick={handlePrevFarm} title="Prev farm" style={{ padding: '2px', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>
-                    <ChevronLeft size={13} />
-                  </button>
-                  <button onClick={handleNextFarm} title="Next farm" style={{ padding: '2px', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {FARMS_DATA.map((f, i) => {
-                  const isCur = currentFarmIndex === i;
-                  return (
-                    <div
-                      key={f.id}
-                      onClick={() => setCurrentFarmIndex(i)}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '6px',
-                        backgroundColor: isCur ? 'rgba(16, 185, 129, 0.18)' : '#1E293B',
-                        border: `1px solid ${isCur ? '#10B981' : '#334155'}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: isCur ? '#34D399' : '#FFFFFF' }}>
-                          {f.name.split(' ')[0]} {f.name.split(' ')[1]}
-                        </span>
-                        <span style={{ fontSize: '9px', color: '#10B981', fontFamily: 'monospace' }}>
-                          {f.gridCols}×{f.gridRows}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '9px', color: '#94A3B8', marginTop: '2px' }}>
-                        {f.location.split(',')[0]} · {f.stats.crop.split('&')[0].trim()}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-              <button
-                onClick={handleNextFarm}
-                title={`Switch Farm (${currentFarm.name})`}
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1E293B',
-                  border: '1px solid #10B981',
-                  color: '#10B981',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: 800
-                }}
-              >
-                F{currentFarmIndex + 1}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Sidebar Menu Links (Unified without redundancy) */}
@@ -339,121 +260,97 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
       {/* Main Content Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
         
-        {/* 2. Top Header Navigation Bar (WarehouseOS Style) */}
+        {/* 2. Top Header Navigation Bar (Clean & Centered Search) */}
         <header style={{
           backgroundColor: '#FFFFFF',
           borderBottom: '1px solid #E2E8F0',
           padding: '12px 24px',
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
           alignItems: 'center',
-          justifyContent: 'space-between',
           position: 'sticky',
           top: 0,
           zIndex: 50,
           boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
         }}>
-          {/* Brand & Identity */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              backgroundColor: '#0F172A',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              fontWeight: 900,
-              fontSize: '18px'
-            }}>
-              <span style={{ color: '#10B981' }}>W</span>
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
-                  FarmOS
-                </span>
-                <span style={{
-                  fontSize: '10px',
-                  fontFamily: 'monospace',
-                  fontWeight: 700,
-                  color: '#10B981',
-                  padding: '1px 6px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                  borderRadius: '4px'
-                }}>
-                  CONTROL CENTER
-                </span>
-              </div>
-            </div>
+          {/* Left spacer to keep center search perfectly centered */}
+          <div />
+
+          {/* Center Search Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: '#F1F5F9',
+            padding: '7px 16px',
+            borderRadius: '8px',
+            border: '1px solid #E2E8F0',
+            width: '320px'
+          }}>
+            <Search size={15} color="#94A3B8" />
+            <input
+              type="text"
+              placeholder="Search farm..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                fontSize: '13px',
+                color: '#0F172A',
+                outline: 'none',
+                width: '100%'
+              }}
+            />
           </div>
 
-          {/* Center Navigation Tabs (Unified without redundancy) */}
-          <nav style={{ display: 'flex', gap: '4px', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '10px' }}>
-            {[
-              { id: 'map', label: 'Farm Overview (3D Twin)', icon: <Activity size={14} /> },
-              { id: 'controllers', label: 'Controllers & Hardware', icon: <Cpu size={14} /> },
-              { id: 'harvest', label: 'Harvest & Yield', icon: <TrendingUp size={14} /> },
-              { id: 'analytics', label: 'Dosing AI Engine', icon: <Sparkles size={14} /> }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setNavTab(tab.id as any)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  backgroundColor: navTab === tab.id ? '#FFFFFF' : 'transparent',
-                  color: navTab === tab.id ? '#0F172A' : '#64748B',
-                  fontSize: '12px',
-                  fontWeight: navTab === tab.id ? 800 : 500,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  boxShadow: navTab === tab.id ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
+          {/* Right Action Tools: Mobile App View, Setpoints, Bell (Alerts), Profile */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+            {/* Toggle to Pocket Mobile App Mode */}
+            <button
+              onClick={() => onToggleViewMode('mobile')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                backgroundColor: '#0F172A',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                transition: 'background 0.15s ease'
+              }}
+            >
+              <Smartphone size={14} color="#10B981" />
+              <span>Mobile App View</span>
+            </button>
 
-          {/* Right Action Tools: Search, Alerts, Profile, Mobile App Switch */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Search Bar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#F1F5F9',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              border: '1px solid #E2E8F0',
-              width: '180px'
-            }}>
-              <Search size={14} color="#94A3B8" />
-              <input
-                type="text"
-                placeholder="Search farm..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  fontSize: '12px',
-                  color: '#0F172A',
-                  outline: 'none',
-                  width: '100%'
-                }}
-              />
-            </div>
+            {/* Setpoints Button */}
+            <button
+              onClick={onOpenSetpoints}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #CBD5E1',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#0F172A',
+                cursor: 'pointer'
+              }}
+            >
+              <Sliders size={13} color="#10B981" />
+              <span>Setpoints</span>
+            </button>
 
             {/* Notification Bell */}
-            <div style={{ position: 'relative', cursor: 'pointer' }}>
+            <div style={{ position: 'relative', cursor: 'pointer' }} title="Alerts & Notifications">
               <div style={{
                 width: '34px',
                 height: '34px',
@@ -478,68 +375,24 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
             </div>
 
             {/* User Profile Avatar */}
-            <div style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '50%',
-              backgroundColor: '#E2E8F0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '13px',
-              color: '#475569'
-            }}>
-              AG
-            </div>
-
-            {/* Connection Status & Setpoints */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'monospace', color: '#64748B' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: connectionStatus === 'CONNECTED' ? '#10B981' : '#EF4444' }} />
-              <span>{connectionStatus}</span>
-            </div>
-
-            <button
-              onClick={onOpenSetpoints}
+            <div
               style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                backgroundColor: '#E2E8F0',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #CBD5E1',
-                borderRadius: '8px',
-                fontSize: '12px',
+                justifyContent: 'center',
                 fontWeight: 700,
-                color: '#0F172A',
+                fontSize: '13px',
+                color: '#475569',
                 cursor: 'pointer'
               }}
+              title="User Account (AG)"
             >
-              <Sliders size={13} color="#10B981" />
-              <span>Setpoints</span>
-            </button>
-
-            {/* Toggle to Pocket Mobile App Mode */}
-            <button
-              onClick={() => onToggleViewMode('mobile')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                backgroundColor: '#0F172A',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 800,
-                cursor: 'pointer',
-                transition: 'background 0.15s ease'
-              }}
-            >
-              <Smartphone size={14} color="#10B981" />
-              <span>Mobile App View</span>
-            </button>
+              AG
+            </div>
           </div>
         </header>
 
@@ -608,31 +461,49 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
             </p>
           </div>
 
-          {/* Zone/Floor Selectors */}
-          <div style={{ display: 'flex', gap: '6px', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '8px' }}>
-            {[
-              { id: 'all', label: 'All Zones (Global)' },
-              { id: 'glasshouses', label: 'Zone 1 · Peaked Glass' },
-              { id: 'hydro', label: 'Zone 2 · Hydro NFT' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveZoneTab(tab.id as any)}
+          {/* Farm Estate Selection Dropdown (Replaces confusing Zone tabs) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
+              Select Farm:
+            </span>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={currentFarmIndex}
+                onChange={(e) => setCurrentFarmIndex(Number(e.target.value))}
                 style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: activeZoneTab === tab.id ? '#FFFFFF' : 'transparent',
-                  color: activeZoneTab === tab.id ? '#0F172A' : '#64748B',
-                  fontSize: '12px',
-                  fontWeight: activeZoneTab === tab.id ? 800 : 500,
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  padding: '8px 36px 8px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1',
+                  backgroundColor: '#FFFFFF',
+                  color: '#0F172A',
+                  fontSize: '13px',
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  boxShadow: activeZoneTab === tab.id ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
+                  outline: 'none',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  minWidth: '260px'
                 }}
               >
-                {tab.label}
-              </button>
-            ))}
+                {FARMS_DATA.map((farm, idx) => (
+                  <option key={farm.id} value={idx}>
+                    {farm.name} ({farm.gridCols}×{farm.gridRows}) · {farm.location.split(',')[0]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={15}
+                color="#64748B"
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none'
+                }}
+              />
+            </div>
           </div>
         </section>
 
