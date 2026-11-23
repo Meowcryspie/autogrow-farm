@@ -8,6 +8,7 @@ import {
   Cpu, 
   Droplet, 
   ChevronRight, 
+  ChevronLeft,
   Sparkles, 
   Flame, 
   TrendingUp,
@@ -50,9 +51,202 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
   const [activeZoneTab, setActiveZoneTab] = useState<'all' | 'glasshouses' | 'hydro'>('all');
   const [selectedStruct, setSelectedStruct] = useState<TileStructure | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', color: '#0F172A', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', color: '#0F172A', display: 'flex' }}>
+      {/* Collapsible Left Management Sidebar (Desktop SCADA Menu) */}
+      <aside style={{
+        width: isSidebarOpen ? '250px' : '64px',
+        backgroundColor: '#0F172A',
+        color: '#FFFFFF',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        borderRight: '1px solid #1E293B',
+        flexShrink: 0,
+        minHeight: '100vh',
+        zIndex: 60
+      }}>
+        {/* Sidebar Brand Header */}
+        <div style={{
+          padding: '16px',
+          borderBottom: '1px solid #1E293B',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isSidebarOpen ? 'space-between' : 'center',
+          height: '61px'
+        }}>
+          {isSidebarOpen ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: '#10B981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 900,
+                color: '#0F172A',
+                fontSize: '16px'
+              }}>
+                A
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
+                  Autogrow SCADA
+                </div>
+                <div style={{ fontSize: '10px', color: '#94A3B8', fontFamily: 'monospace' }}>
+                  COMMERCIAL v3.0
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              backgroundColor: '#10B981',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 900,
+              color: '#0F172A',
+              fontSize: '16px'
+            }}>
+              A
+            </div>
+          )}
+
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94A3B8',
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title={isSidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
+          >
+            {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+          </button>
+        </div>
+
+        {/* Sidebar Menu Links */}
+        <div style={{ padding: isSidebarOpen ? '16px 12px' : '16px 8px', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+          {isSidebarOpen && (
+            <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748B', padding: '0 8px 6px', letterSpacing: '0.05em' }}>
+              FARM MANAGEMENT
+            </div>
+          )}
+
+          {[
+            { id: 'overview', label: 'SCADA Overview', icon: <Layers size={16} /> },
+            { id: 'map', label: '3D Farm Twin & Builder', icon: <Activity size={16} /> },
+            { id: 'controllers', label: 'Hardware & Sensors', icon: <Cpu size={16} /> },
+            { id: 'harvest', label: 'Farm Yield Output', icon: <TrendingUp size={16} /> },
+            { id: 'analytics', label: 'AI Dosing Engine', icon: <Sparkles size={16} /> }
+          ].map(item => {
+            const isActive = navTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setNavTab(item.id as any)}
+                title={!isSidebarOpen ? item.label : undefined}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: isSidebarOpen ? '9px 12px' : '9px',
+                  justifyContent: isSidebarOpen ? 'flex-start' : 'center',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: isActive ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                  color: isActive ? '#34D399' : '#94A3B8',
+                  fontSize: '12px',
+                  fontWeight: isActive ? 800 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ color: isActive ? '#34D399' : '#94A3B8' }}>{item.icon}</div>
+                {isSidebarOpen && <span>{item.label}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sidebar Footer Widget */}
+        <div style={{
+          padding: isSidebarOpen ? '16px' : '12px 6px',
+          borderTop: '1px solid #1E293B',
+          backgroundColor: '#0B1120'
+        }}>
+          {isSidebarOpen ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#FFFFFF' }}>EDGE ENGINE</span>
+                <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'monospace', color: '#34D399', backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '1px 5px', borderRadius: '4px' }}>
+                  {connectionStatus}
+                </span>
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '10px' }}>
+                SQLite WAL · Port 8080 · 14 Nodes
+              </div>
+              <button
+                onClick={() => onToggleViewMode('mobile')}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '7px',
+                  backgroundColor: '#1E293B',
+                  border: '1px solid #334155',
+                  borderRadius: '6px',
+                  color: '#FFFFFF',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <Smartphone size={13} color="#10B981" />
+                <span>Mobile App View</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => onToggleViewMode('mobile')}
+              title="Switch to Mobile App View"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px',
+                backgroundColor: '#1E293B',
+                border: 'none',
+                borderRadius: '6px',
+                color: '#10B981',
+                cursor: 'pointer'
+              }}
+            >
+              <Smartphone size={16} />
+            </button>
+          )}
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
       {/* 1. WarehouseOS-Style Top Navigation Bar */}
       <header style={{
         backgroundColor: '#FFFFFF',
@@ -106,8 +300,8 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
         <nav style={{ display: 'flex', gap: '4px', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '10px' }}>
           {[
             { id: 'overview', label: 'Overview', icon: <Layers size={14} /> },
-            { id: 'map', label: 'Farm Map (3D Digital Twin)', icon: <Activity size={14} /> },
-            { id: 'controllers', label: 'Controllers & Hardware', icon: <Cpu size={14} /> },
+            { id: 'map', label: 'Farm Map 3D', icon: <Activity size={14} /> },
+            { id: 'controllers', label: 'Controllers', icon: <Cpu size={14} /> },
             { id: 'harvest', label: 'Harvest & Yield', icon: <TrendingUp size={14} /> },
             { id: 'analytics', label: 'Dosing AI Engine', icon: <Sparkles size={14} /> }
           ].map(tab => (
@@ -126,6 +320,7 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
                 fontSize: '12px',
                 fontWeight: navTab === tab.id ? 800 : 500,
                 cursor: 'pointer',
+                whiteSpace: 'nowrap',
                 boxShadow: navTab === tab.id ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
                 transition: 'all 0.15s ease'
               }}
@@ -595,6 +790,7 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
           <DoseSuggestions currentSetpoint={setpoint} onApplySetpoints={onSaveSetpoint} />
         )}
       </main>
+      </div>
     </div>
   );
 };
