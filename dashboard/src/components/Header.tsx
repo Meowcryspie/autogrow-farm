@@ -1,11 +1,13 @@
 import React from 'react';
-import { Wifi, WifiOff, OctagonAlert, Sliders, RefreshCw } from 'lucide-react';
+import { Wifi, WifiOff, OctagonAlert, Sliders, RefreshCw, Smartphone, Monitor } from 'lucide-react';
 
 interface HeaderProps {
   farmId: string;
   zoneName: string;
   connectionStatus: 'CONNECTED' | 'CONNECTING' | 'OFFLINE';
   lastUpdated: string;
+  viewMode: 'mobile' | 'desktop';
+  onToggleViewMode: (mode: 'mobile' | 'desktop') => void;
   onOpenSetpoints: () => void;
   onEmergencyPause: () => void;
 }
@@ -15,6 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   zoneName,
   connectionStatus,
   lastUpdated,
+  viewMode,
+  onToggleViewMode,
   onOpenSetpoints,
   onEmergencyPause
 }) => {
@@ -80,7 +84,60 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Network Status & Real-time Connectivity */}
+      {/* Center: View Switcher (Mobile Phone vs Desktop SCADA) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        backgroundColor: 'var(--bg-primary)',
+        padding: '4px',
+        borderRadius: '8px',
+        border: '1px solid var(--border-hairline)'
+      }}>
+        <button
+          onClick={() => onToggleViewMode('mobile')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            backgroundColor: viewMode === 'mobile' ? 'var(--bg-surface-elevated)' : 'transparent',
+            border: viewMode === 'mobile' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+            borderRadius: '6px',
+            color: viewMode === 'mobile' ? '#10B981' : 'var(--text-dim)',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Smartphone size={14} />
+          <span>Mobile App View</span>
+        </button>
+
+        <button
+          onClick={() => onToggleViewMode('desktop')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            backgroundColor: viewMode === 'desktop' ? 'var(--bg-surface-elevated)' : 'transparent',
+            border: viewMode === 'desktop' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+            borderRadius: '6px',
+            color: viewMode === 'desktop' ? '#10B981' : 'var(--text-dim)',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Monitor size={14} />
+          <span>Desktop SCADA Matrix</span>
+        </button>
+      </div>
+
+      {/* Network Status & Quick Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{
           display: 'flex',
@@ -102,12 +159,12 @@ export const Header: React.FC<HeaderProps> = ({
           ) : connectionStatus === 'CONNECTING' ? (
             <>
               <RefreshCw size={14} color="#F59E0B" className="spin" />
-              <span style={{ color: '#F59E0B' }}>CONNECTING TO EDGE...</span>
+              <span style={{ color: '#F59E0B' }}>CONNECTING...</span>
             </>
           ) : (
             <>
               <WifiOff size={14} color="#EF4444" />
-              <span style={{ color: '#EF4444' }}>EDGE GATEWAY OFFLINE</span>
+              <span style={{ color: '#EF4444' }}>OFFLINE</span>
             </>
           )}
         </div>
@@ -129,14 +186,12 @@ export const Header: React.FC<HeaderProps> = ({
             cursor: 'pointer',
             transition: 'background 0.15s'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--border-hairline)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)')}
         >
           <Sliders size={14} color="#38BDF8" />
           <span>Crop Setpoints</span>
         </button>
 
-        {/* Software "Pause All Outputs" Button (Explicitly distinct from physical E-STOP) */}
+        {/* Software "Pause All Outputs" Button */}
         <button
           onClick={() => {
             if (confirm('PAUSE ALL OUTPUTS: This immediately stops all dosing pumps and irrigation valves. Continue?')) {
