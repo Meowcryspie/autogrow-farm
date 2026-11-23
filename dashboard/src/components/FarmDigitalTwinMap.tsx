@@ -6,26 +6,29 @@ import {
   ZoomOut, 
   CheckCircle2, 
   Eye, 
-  Hammer,
-  Trash2,
-  Cpu,
-  Move,
-  RotateCw,
-  ShoppingBag,
-  X,
-  Volume2,
-  VolumeX,
-  Sliders
+  Hammer, 
+  Trash2, 
+  Cpu, 
+  Move, 
+  RotateCw, 
+  ShoppingBag, 
+  X, 
+  Volume2, 
+  VolumeX, 
+  Sliders,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2
 } from 'lucide-react';
 
 export interface TileStructure {
   id: string;
   name: string;
   type: 'greenhouse' | 'beds' | 'silos' | 'headhouse' | 'controller_station' | 'pathway' | 'water_tank' | 'polyhouse';
-  tileX: number; // 0 to 11
-  tileY: number; // 0 to 9
-  wTiles: number; // width in tiles
-  hTiles: number; // height in tiles
+  tileX: number;
+  tileY: number;
+  wTiles: number;
+  hTiles: number;
   rotation: 0 | 90 | 180 | 270;
   zone: string;
   crop: string;
@@ -34,11 +37,11 @@ export interface TileStructure {
     serial: string;
     firmware: string;
     wifiSSID: string;
-    rssi: number; // dBm e.g. -52
+    rssi: number;
     ipAddress: string;
     status: 'ONLINE' | 'DOSING' | 'ATTENTION';
-    doseCountHour: number; // DC/h
-    doseCountTotal: number; // DCT
+    doseCountHour: number;
+    doseCountTotal: number;
   };
   metrics: {
     ec: number;
@@ -56,6 +59,23 @@ export interface TileStructure {
   };
 }
 
+export interface FarmLocationData {
+  id: string;
+  name: string;
+  location: string;
+  tag: string;
+  gridCols: number;
+  gridRows: number;
+  structures: TileStructure[];
+  stats: {
+    totalAreaSqM: number;
+    activeControllers: number;
+    crop: string;
+    avgEc: string;
+    status: 'ALL ONLINE' | '1 ATTENTION';
+  };
+}
+
 export interface CatalogItem {
   type: TileStructure['type'];
   name: string;
@@ -68,23 +88,23 @@ export interface CatalogItem {
   capacity: string;
 }
 
-interface FarmDigitalTwinMapProps {
+export interface FarmDigitalTwinMapProps {
+  activeFarmIndex?: number;
+  onFarmChange?: (index: number) => void;
   onSelectStructure?: (struct: TileStructure) => void;
   selectedStructureId?: string;
   onTriggerDose?: (actuatorId: string, durationSec: number) => Promise<boolean>;
 }
 
 // 1x1 Isometric Projection Math
-const TILE_W = 64; // Isometric tile width in pixels
-const TILE_H = 32; // Isometric tile height in pixels
-const ORIGIN_X = 540;
-const ORIGIN_Y = 110;
-const GRID_COLS = 12;
-const GRID_ROWS = 10;
+const TILE_W = 64;
+const TILE_H = 32;
 
-export function tileToScreen(tx: number, ty: number, z: number = 0): [number, number] {
-  const x = ORIGIN_X + (tx - ty) * (TILE_W / 2);
-  const y = ORIGIN_Y + (tx + ty) * (TILE_H / 2) - z;
+export function tileToScreen(tx: number, ty: number, z: number = 0, cols: number = 12, rows: number = 10): [number, number] {
+  const originX = 540;
+  const originY = 115 - ((cols + rows) - 22) * 5;
+  const x = originX + (tx - ty) * (TILE_W / 2);
+  const y = originY + (tx + ty) * (TILE_H / 2) - z;
   return [Math.round(x * 10) / 10, Math.round(y * 10) / 10];
 }
 
@@ -92,71 +112,623 @@ export function ptStr(p: [number, number]): string {
   return `${p[0]},${p[1]}`;
 }
 
+// ==============================================================================
+// 3 REALISTIC COMMERCIAL FARM ESTATES PRESETS
+// ==============================================================================
+export const FARMS_DATA: FarmLocationData[] = [
+  {
+    id: 'farm-cameron-01',
+    name: 'Highlands Commercial Glasshouses',
+    location: 'Cameron Highlands, Pahang',
+    tag: 'Zone 01 · High-Wire Commercial',
+    gridCols: 12,
+    gridRows: 10,
+    stats: {
+      totalAreaSqM: 4800,
+      activeControllers: 14,
+      crop: 'Vine Tomatoes & Snack Peppers',
+      avgEc: '2.35 mS/cm',
+      status: 'ALL ONLINE'
+    },
+    structures: [
+      {
+        id: 'greenhouse-1',
+        name: 'Venlo Bay 01 · Peaked Glasshouse',
+        type: 'greenhouse',
+        tileX: 1,
+        tileY: 1,
+        wTiles: 4,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Zone 01 · North Ridge',
+        crop: 'Vine Tomatoes (Campari F1)',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-8841-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'Greenhouse_5G_Commercial',
+          rssi: -52,
+          ipAddress: '192.168.10.45',
+          status: 'ONLINE',
+          doseCountHour: 38,
+          doseCountTotal: 1420
+        },
+        metrics: { ec: 2.35, targetEc: 2.40, ph: 5.82, targetPh: 5.80, vpd: 1.15, vwc: 64.5, waterTemp: 20.8 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'greenhouse-2',
+        name: 'Venlo Bay 02 · Peaked Glasshouse',
+        type: 'greenhouse',
+        tileX: 6,
+        tileY: 1,
+        wTiles: 4,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Zone 01 · North Ridge',
+        crop: 'Snack Peppers & Cucumbers',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-8842-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'Greenhouse_5G_Commercial',
+          rssi: -55,
+          ipAddress: '192.168.10.46',
+          status: 'ONLINE',
+          doseCountHour: 24,
+          doseCountTotal: 980
+        },
+        metrics: { ec: 2.40, targetEc: 2.40, ph: 5.85, targetPh: 5.80, vpd: 1.18, vwc: 62.0, waterTemp: 21.0 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'nft-beds-1',
+        name: 'Hydroponic Gutter Beds · NFT Field A',
+        type: 'beds',
+        tileX: 1,
+        tileY: 5,
+        wTiles: 4,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Zone 02 · Gutter NFT',
+        crop: 'Crisphead Butter Lettuce',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-4401-MY',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'Greenhouse_5G_Commercial',
+          rssi: -62,
+          ipAddress: '192.168.10.51',
+          status: 'ONLINE',
+          doseCountHour: 18,
+          doseCountTotal: 640
+        },
+        metrics: { ec: 1.65, targetEc: 1.60, ph: 5.88, targetPh: 5.85, vpd: 0.95, vwc: 78.0, waterTemp: 19.5 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'nft-beds-2',
+        name: 'Hydroponic Gutter Beds · NFT Field B',
+        type: 'beds',
+        tileX: 6,
+        tileY: 5,
+        wTiles: 4,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Zone 02 · Gutter NFT',
+        crop: 'Fresh Culinary Herbs (Basil/Mint)',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-4402-MY',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'Greenhouse_5G_Commercial',
+          rssi: -66,
+          ipAddress: '192.168.10.52',
+          status: 'ATTENTION',
+          doseCountHour: 44,
+          doseCountTotal: 1850
+        },
+        metrics: { ec: 1.52, targetEc: 1.65, ph: 6.12, targetPh: 5.85, vpd: 1.05, vwc: 74.0, waterTemp: 20.2 },
+        pumps: { pumpA: 'DOSING', pumpB: 'IDLE', acid: 'DOSING' }
+      },
+      {
+        id: 'silos-station',
+        name: 'Central Fertigation Silos & Mixing Skid',
+        type: 'silos',
+        tileX: 1,
+        tileY: 8,
+        wTiles: 3,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Zone 00 · Fertigation Skid',
+        crop: 'Nutrient Stock Tanks A & B',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-4400-HQ',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'Greenhouse_5G_Commercial',
+          rssi: -48,
+          ipAddress: '192.168.10.40',
+          status: 'ONLINE',
+          doseCountHour: 52,
+          doseCountTotal: 3410
+        },
+        metrics: { ec: 2.80, targetEc: 2.80, ph: 5.75, targetPh: 5.75, vpd: 1.00, vwc: 85.0, waterTemp: 19.8 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'packhouse-facility',
+        name: 'Central Packing & Cold Headhouse Facility',
+        type: 'headhouse',
+        tileX: 5,
+        tileY: 7,
+        wTiles: 4,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Zone Logistics',
+        crop: 'Graded Packout & QC',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-8840-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'Greenhouse_5G_Commercial',
+          rssi: -42,
+          ipAddress: '192.168.10.10',
+          status: 'ONLINE',
+          doseCountHour: 0,
+          doseCountTotal: 0
+        },
+        metrics: { ec: 0.00, targetEc: 0.00, ph: 7.00, targetPh: 7.00, vpd: 0.85, vwc: 0.0, waterTemp: 16.5 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'ec-mini-station-standalone',
+        name: 'Direct-Drive EC Mini Station #01',
+        type: 'controller_station',
+        tileX: 5,
+        tileY: 4,
+        wTiles: 1,
+        hTiles: 1,
+        rotation: 0,
+        zone: 'Zone 01 · Gutter Header',
+        crop: 'Nutrient Delivery Header',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-4405-MY',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'Greenhouse_5G_Commercial',
+          rssi: -58,
+          ipAddress: '192.168.10.55',
+          status: 'ONLINE',
+          doseCountHour: 28,
+          doseCountTotal: 840
+        },
+        metrics: { ec: 2.10, targetEc: 2.20, ph: 5.80, targetPh: 5.80, vpd: 1.05, vwc: 68.0, waterTemp: 20.0 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      }
+    ]
+  },
+  {
+    id: 'farm-genting-02',
+    name: 'Pahang Berry Bay Hydro NFT Estate',
+    location: 'Genting Valley, Pahang',
+    tag: 'Zone 02 · Large-Scale Estate',
+    gridCols: 16,
+    gridRows: 12,
+    stats: {
+      totalAreaSqM: 8200,
+      activeControllers: 10,
+      crop: 'Alpine Strawberries & Japanese Melons',
+      avgEc: '2.15 mS/cm',
+      status: 'ALL ONLINE'
+    },
+    structures: [
+      {
+        id: 'poly-1',
+        name: 'High-Tunnel Strawberry Polyhouse Bay A',
+        type: 'polyhouse',
+        tileX: 1,
+        tileY: 1,
+        wTiles: 5,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Zone A · Berry Polyhouse',
+        crop: 'Albion Everbearing Strawberries',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-9101-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'BerryBay_Mesh_5G',
+          rssi: -48,
+          ipAddress: '192.168.20.11',
+          status: 'ONLINE',
+          doseCountHour: 42,
+          doseCountTotal: 2180
+        },
+        metrics: { ec: 1.95, targetEc: 2.00, ph: 5.75, targetPh: 5.75, vpd: 1.05, vwc: 68.0, waterTemp: 19.2 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'poly-2',
+        name: 'High-Tunnel Strawberry Polyhouse Bay B',
+        type: 'polyhouse',
+        tileX: 7,
+        tileY: 1,
+        wTiles: 5,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Zone B · Berry Polyhouse',
+        crop: 'Albion Everbearing Strawberries',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-9102-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'BerryBay_Mesh_5G',
+          rssi: -51,
+          ipAddress: '192.168.20.12',
+          status: 'ONLINE',
+          doseCountHour: 36,
+          doseCountTotal: 1840
+        },
+        metrics: { ec: 1.98, targetEc: 2.00, ph: 5.78, targetPh: 5.75, vpd: 1.10, vwc: 66.5, waterTemp: 19.4 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'poly-3',
+        name: 'Japanese Rockmelon High-Tunnel Bay C',
+        type: 'greenhouse',
+        tileX: 1,
+        tileY: 5,
+        wTiles: 5,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Zone C · Melon Dutch Buckets',
+        crop: 'Shizuoka Crown Melon',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-9103-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'BerryBay_Mesh_5G',
+          rssi: -54,
+          ipAddress: '192.168.20.13',
+          status: 'ONLINE',
+          doseCountHour: 30,
+          doseCountTotal: 1560
+        },
+        metrics: { ec: 2.45, targetEc: 2.50, ph: 5.85, targetPh: 5.80, vpd: 1.25, vwc: 60.0, waterTemp: 21.2 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'nft-berry-gutter',
+        name: 'Precision NFT Gutter Nursery',
+        type: 'beds',
+        tileX: 7,
+        tileY: 5,
+        wTiles: 5,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Zone D · Gutter Runners',
+        crop: 'Strawberry Runner Propagation',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-5510-MY',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'BerryBay_Mesh_5G',
+          rssi: -60,
+          ipAddress: '192.168.20.21',
+          status: 'ONLINE',
+          doseCountHour: 22,
+          doseCountTotal: 790
+        },
+        metrics: { ec: 1.45, targetEc: 1.50, ph: 5.90, targetPh: 5.85, vpd: 0.90, vwc: 80.0, waterTemp: 18.8 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'silo-berry-bulk',
+        name: 'Twin Rainwater & Fertigation Silos',
+        type: 'silos',
+        tileX: 1,
+        tileY: 9,
+        wTiles: 4,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Central Water Hub',
+        crop: 'RO & Concentrated A/B',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-5500-HQ',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'BerryBay_Mesh_5G',
+          rssi: -45,
+          ipAddress: '192.168.20.10',
+          status: 'ONLINE',
+          doseCountHour: 48,
+          doseCountTotal: 3120
+        },
+        metrics: { ec: 2.60, targetEc: 2.60, ph: 5.70, targetPh: 5.70, vpd: 0.95, vwc: 88.0, waterTemp: 18.5 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'packhouse-berry',
+        name: 'Berry Sorting, Packing & Coldstore Bay',
+        type: 'headhouse',
+        tileX: 7,
+        tileY: 8,
+        wTiles: 5,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Logistics Bay',
+        crop: 'Cold Chain Shipping',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-9100-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'BerryBay_Mesh_5G',
+          rssi: -40,
+          ipAddress: '192.168.20.05',
+          status: 'ONLINE',
+          doseCountHour: 0,
+          doseCountTotal: 0
+        },
+        metrics: { ec: 0.0, targetEc: 0.0, ph: 7.0, targetPh: 7.0, vpd: 0.75, vwc: 0.0, waterTemp: 14.0 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      }
+    ]
+  },
+  {
+    id: 'farm-kinabalu-03',
+    name: 'Kundasang Alpine Nursery Complex',
+    location: 'Mount Kinabalu Alpine Station, Sabah',
+    tag: 'Zone 03 · High-Altitude Propagation',
+    gridCols: 14,
+    gridRows: 10,
+    stats: {
+      totalAreaSqM: 3600,
+      activeControllers: 8,
+      crop: 'Seedling Nursery & Microgreens',
+      avgEc: '1.45 mS/cm',
+      status: 'ALL ONLINE'
+    },
+    structures: [
+      {
+        id: 'nursery-chamber-1',
+        name: 'Germination & Propagation Chamber A',
+        type: 'greenhouse',
+        tileX: 1,
+        tileY: 1,
+        wTiles: 4,
+        hTiles: 3,
+        rotation: 0,
+        zone: 'Nursery Lab 01',
+        crop: 'High-Density Seedling Plugs',
+        controller: {
+          model: 'IntelliDose Hub',
+          serial: 'ID-9901-NZ',
+          firmware: 'v3.1.0',
+          wifiSSID: 'Kundasang_Alpine_WiFi',
+          rssi: -44,
+          ipAddress: '192.168.30.15',
+          status: 'ONLINE',
+          doseCountHour: 16,
+          doseCountTotal: 720
+        },
+        metrics: { ec: 1.25, targetEc: 1.20, ph: 5.85, targetPh: 5.85, vpd: 0.85, vwc: 82.0, waterTemp: 17.5 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'nursery-beds-flood',
+        name: 'Ebb & Flow Flood Benches',
+        type: 'beds',
+        tileX: 6,
+        tileY: 1,
+        wTiles: 4,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Flood Zone A',
+        crop: 'Butterhead Lettuce Seedlings',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-6601-MY',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'Kundasang_Alpine_WiFi',
+          rssi: -58,
+          ipAddress: '192.168.30.22',
+          status: 'ONLINE',
+          doseCountHour: 20,
+          doseCountTotal: 610
+        },
+        metrics: { ec: 1.50, targetEc: 1.50, ph: 5.80, targetPh: 5.80, vpd: 0.90, vwc: 75.0, waterTemp: 17.8 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'microgreens-vertical',
+        name: 'Microgreens High-Density Rack Bay',
+        type: 'beds',
+        tileX: 6,
+        tileY: 4,
+        wTiles: 4,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Rack Zone B',
+        crop: 'Red Amaranth & Pea Shoots',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-6602-MY',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'Kundasang_Alpine_WiFi',
+          rssi: -52,
+          ipAddress: '192.168.30.24',
+          status: 'ONLINE',
+          doseCountHour: 26,
+          doseCountTotal: 840
+        },
+        metrics: { ec: 1.35, targetEc: 1.40, ph: 5.82, targetPh: 5.80, vpd: 0.92, vwc: 76.0, waterTemp: 18.0 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'nursery-silo',
+        name: 'Pure Stock Solution Mixing Silo',
+        type: 'silos',
+        tileX: 1,
+        tileY: 5,
+        wTiles: 3,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Alpine Fertigation Skid',
+        crop: 'Seedling Nutrient Formula',
+        controller: {
+          model: 'Autogrow EC Mini',
+          serial: 'EM-6600-HQ',
+          firmware: 'v5.0-Rev3',
+          wifiSSID: 'Kundasang_Alpine_WiFi',
+          rssi: -49,
+          ipAddress: '192.168.30.10',
+          status: 'ONLINE',
+          doseCountHour: 32,
+          doseCountTotal: 1290
+        },
+        metrics: { ec: 2.20, targetEc: 2.20, ph: 5.75, targetPh: 5.75, vpd: 0.95, vwc: 84.0, waterTemp: 16.8 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      },
+      {
+        id: 'nursery-lab',
+        name: 'Alpine Research Logistics Station',
+        type: 'headhouse',
+        tileX: 4,
+        tileY: 7,
+        wTiles: 5,
+        hTiles: 2,
+        rotation: 0,
+        zone: 'Research Wing',
+        crop: 'Tissue Culture & Germination',
+        controller: {
+          model: 'MultiGrow MGC-Pro 16-Ch',
+          serial: 'AG-9500-NZ',
+          firmware: 'v2.4.1-LTS',
+          wifiSSID: 'Kundasang_Alpine_WiFi',
+          rssi: -40,
+          ipAddress: '192.168.30.01',
+          status: 'ONLINE',
+          doseCountHour: 0,
+          doseCountTotal: 0
+        },
+        metrics: { ec: 0.0, targetEc: 0.0, ph: 7.0, targetPh: 7.0, vpd: 0.80, vwc: 0.0, waterTemp: 15.0 },
+        pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
+      }
+    ]
+  }
+];
+
 export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
+  activeFarmIndex = 0,
+  onFarmChange,
   onSelectStructure,
   selectedStructureId: externalSelectedId,
   onTriggerDose
 }) => {
-  // Web Audio Synthesizer for FarmVille SFX
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  // Active Farm selection state
+  const [currentFarmIdx, setCurrentFarmIdx] = useState<number>(activeFarmIndex);
 
-  const playSfx = (type: 'place' | 'rotate' | 'delete' | 'select' | 'error') => {
-    if (!soundEnabled || typeof window === 'undefined') return;
+  useEffect(() => {
+    setCurrentFarmIdx(activeFarmIndex);
+  }, [activeFarmIndex]);
+
+  const currentFarm = FARMS_DATA[currentFarmIdx] || FARMS_DATA[0];
+
+  // Farm Land Dynamic Grid Sizing (Grower can expand/shrink just like FarmVille)
+  const [gridCols, setGridCols] = useState<number>(currentFarm.gridCols);
+  const [gridRows, setGridRows] = useState<number>(currentFarm.gridRows);
+
+  // Sync grid dimensions and structures when farm changes
+  useEffect(() => {
+    setGridCols(currentFarm.gridCols);
+    setGridRows(currentFarm.gridRows);
+    setStructures(currentFarm.structures);
+    if (currentFarm.structures.length > 0) {
+      setSelectedId(currentFarm.structures[0].id);
+    }
+  }, [currentFarmIdx]);
+
+  // Audio SFX Synthesizer
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const playSfx = (type: 'place' | 'rotate' | 'delete' | 'error' | 'select') => {
+    if (!soundEnabled) return;
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
+
       const now = ctx.currentTime;
 
       if (type === 'place') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(380, now);
-        osc.frequency.exponentialRampToValueAtTime(760, now + 0.1);
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
-        osc.start(now);
-        osc.stop(now + 0.14);
-      } else if (type === 'rotate') {
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(740, now + 0.12);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      } else if (type === 'rotate') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(540, now);
         osc.frequency.setValueAtTime(680, now + 0.05);
         gain.gain.setValueAtTime(0.18, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
         osc.start(now);
-        osc.stop(now + 0.08);
+        osc.stop(now + 0.1);
       } else if (type === 'delete') {
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(340, now);
-        osc.frequency.exponentialRampToValueAtTime(140, now + 0.15);
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.frequency.setValueAtTime(420, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.18);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
         osc.start(now);
-        osc.stop(now + 0.15);
+        osc.stop(now + 0.2);
+      } else if (type === 'error') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
       } else if (type === 'select') {
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(580, now);
+        osc.frequency.setValueAtTime(600, now);
         gain.gain.setValueAtTime(0.12, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
         osc.start(now);
-        osc.stop(now + 0.05);
-      } else if (type === 'error') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(200, now);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.12);
+        osc.stop(now + 0.06);
       }
     } catch {
-      // Audio autoplay policy fallback
+      // AudioContext muted/unsupported
     }
   };
 
-  // Full FarmVille Market Catalog
+  // Farm Navigation
+  const handlePrevFarm = () => {
+    const nextIdx = (currentFarmIdx - 1 + FARMS_DATA.length) % FARMS_DATA.length;
+    setCurrentFarmIdx(nextIdx);
+    onFarmChange?.(nextIdx);
+    playSfx('select');
+  };
+
+  const handleNextFarm = () => {
+    const nextIdx = (currentFarmIdx + 1) % FARMS_DATA.length;
+    setCurrentFarmIdx(nextIdx);
+    onFarmChange?.(nextIdx);
+    playSfx('select');
+  };
+
+  // Farm Market Catalog
   const catalog: CatalogItem[] = [
     {
       type: 'greenhouse',
@@ -188,7 +760,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       hTiles: 2,
       icon: '🏢',
       desc: 'Enclosed germination chamber with solar array roof and logistics dock.',
-      defaultController: 'IntelliDose Hub',
+      defaultController: 'MultiGrow MGC-Pro 16-Ch',
       capacity: '12,000 seedlings/wk'
     },
     {
@@ -249,234 +821,11 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   ];
 
   // Active farm structures state
-  const [structures, setStructures] = useState<TileStructure[]>([
-    {
-      id: 'greenhouse-1',
-      name: 'Venlo Bay 01 · Peaked Glasshouse',
-      type: 'greenhouse',
-      tileX: 1,
-      tileY: 1,
-      wTiles: 4,
-      hTiles: 3,
-      rotation: 0,
-      zone: 'Zone 01 · North Ridge',
-      crop: 'Vine Tomatoes (Campari F1)',
-      controller: {
-        model: 'MultiGrow MGC-Pro 16-Ch',
-        serial: 'AG-8841-NZ',
-        firmware: 'v2.4.1-LTS',
-        wifiSSID: 'Greenhouse_5G_Commercial',
-        rssi: -52,
-        ipAddress: '192.168.10.45',
-        status: 'ONLINE',
-        doseCountHour: 38,
-        doseCountTotal: 1420
-      },
-      metrics: {
-        ec: 2.35,
-        targetEc: 2.40,
-        ph: 5.82,
-        targetPh: 5.80,
-        vpd: 1.15,
-        vwc: 64.5,
-        waterTemp: 20.8
-      },
-      pumps: {
-        pumpA: 'IDLE',
-        pumpB: 'IDLE',
-        acid: 'IDLE'
-      }
-    },
-    {
-      id: 'greenhouse-2',
-      name: 'Venlo Bay 02 · Peaked Glasshouse',
-      type: 'greenhouse',
-      tileX: 6,
-      tileY: 1,
-      wTiles: 4,
-      hTiles: 3,
-      rotation: 0,
-      zone: 'Zone 01 · North Ridge',
-      crop: 'Snack Peppers & Cucumbers',
-      controller: {
-        model: 'MultiGrow MGC-Pro 16-Ch',
-        serial: 'AG-8842-NZ',
-        firmware: 'v2.4.1-LTS',
-        wifiSSID: 'Greenhouse_5G_Commercial',
-        rssi: -55,
-        ipAddress: '192.168.10.46',
-        status: 'ONLINE',
-        doseCountHour: 24,
-        doseCountTotal: 980
-      },
-      metrics: {
-        ec: 2.40,
-        targetEc: 2.40,
-        ph: 5.79,
-        targetPh: 5.80,
-        vpd: 1.20,
-        vwc: 62.0,
-        waterTemp: 21.0
-      },
-      pumps: {
-        pumpA: 'IDLE',
-        pumpB: 'IDLE',
-        acid: 'IDLE'
-      }
-    },
-    {
-      id: 'nft-beds-1',
-      name: 'Hydroponic Gutter Beds · NFT Field A',
-      type: 'beds',
-      tileX: 1,
-      tileY: 5,
-      wTiles: 4,
-      hTiles: 2,
-      rotation: 0,
-      zone: 'Zone 02 · Gutter NFT',
-      crop: 'Crisphead Lettuce (Salanova)',
-      controller: {
-        model: 'Autogrow EC Mini',
-        serial: 'EM-4401-MY',
-        firmware: 'v5.0-Rev3',
-        wifiSSID: 'Greenhouse_5G_Commercial',
-        rssi: -62,
-        ipAddress: '192.168.10.51',
-        status: 'ONLINE',
-        doseCountHour: 18,
-        doseCountTotal: 640
-      },
-      metrics: {
-        ec: 1.65,
-        targetEc: 1.60,
-        ph: 5.88,
-        targetPh: 5.85,
-        vpd: 0.95,
-        vwc: 78.0,
-        waterTemp: 19.5
-      },
-      pumps: {
-        pumpA: 'IDLE',
-        pumpB: 'IDLE',
-        acid: 'IDLE'
-      }
-    },
-    {
-      id: 'nft-beds-2',
-      name: 'Hydroponic Gutter Beds · NFT Field B',
-      type: 'beds',
-      tileX: 6,
-      tileY: 5,
-      wTiles: 4,
-      hTiles: 2,
-      rotation: 0,
-      zone: 'Zone 02 · Gutter NFT',
-      crop: 'Fresh Culinary Herbs (Basil/Mint)',
-      controller: {
-        model: 'Autogrow EC Mini',
-        serial: 'EM-4402-MY',
-        firmware: 'v5.0-Rev3',
-        wifiSSID: 'Greenhouse_5G_Commercial',
-        rssi: -66,
-        ipAddress: '192.168.10.52',
-        status: 'ATTENTION',
-        doseCountHour: 44,
-        doseCountTotal: 1850
-      },
-      metrics: {
-        ec: 1.52,
-        targetEc: 1.65,
-        ph: 6.12,
-        targetPh: 5.85,
-        vpd: 1.05,
-        vwc: 74.0,
-        waterTemp: 20.2
-      },
-      pumps: {
-        pumpA: 'DOSING',
-        pumpB: 'IDLE',
-        acid: 'DOSING'
-      }
-    },
-    {
-      id: 'silos-station',
-      name: 'Central Fertigation Silos & Mixing Skid',
-      type: 'silos',
-      tileX: 1,
-      tileY: 8,
-      wTiles: 3,
-      hTiles: 2,
-      rotation: 0,
-      zone: 'Zone 00 · Fertigation Skid',
-      crop: 'Nutrient Stock Tanks A & B',
-      controller: {
-        model: 'Autogrow EC Mini',
-        serial: 'EM-4400-HQ',
-        firmware: 'v5.0-Rev3',
-        wifiSSID: 'Greenhouse_5G_Commercial',
-        rssi: -48,
-        ipAddress: '192.168.10.40',
-        status: 'ONLINE',
-        doseCountHour: 52,
-        doseCountTotal: 3410
-      },
-      metrics: {
-        ec: 2.80,
-        targetEc: 2.80,
-        ph: 5.75,
-        targetPh: 5.75,
-        vpd: 1.00,
-        vwc: 85.0,
-        waterTemp: 19.8
-      },
-      pumps: {
-        pumpA: 'IDLE',
-        pumpB: 'IDLE',
-        acid: 'IDLE'
-      }
-    },
-    {
-      id: 'headhouse-1',
-      name: 'Central Packing & Agronomy Lab',
-      type: 'headhouse',
-      tileX: 6,
-      tileY: 8,
-      wTiles: 4,
-      hTiles: 2,
-      rotation: 0,
-      zone: 'Zone 00 · Headhouse Logistics',
-      crop: 'Seedling Germination & Packout',
-      controller: {
-        model: 'IntelliDose Hub',
-        serial: 'ID-9901-NZ',
-        firmware: 'v3.1.0',
-        wifiSSID: 'Greenhouse_5G_Commercial',
-        rssi: -45,
-        ipAddress: '192.168.10.35',
-        status: 'ONLINE',
-        doseCountHour: 12,
-        doseCountTotal: 490
-      },
-      metrics: {
-        ec: 1.20,
-        targetEc: 1.20,
-        ph: 5.90,
-        targetPh: 5.85,
-        vpd: 0.85,
-        vwc: 80.0,
-        waterTemp: 20.0
-      },
-      pumps: {
-        pumpA: 'IDLE',
-        pumpB: 'IDLE',
-        acid: 'IDLE'
-      }
-    }
-  ]);
+  const [structures, setStructures] = useState<TileStructure[]>(currentFarm.structures);
 
   // Mode and Tools
   const [activeTab, setActiveTab] = useState<'view' | 'build'>('build');
-  const [selectedId, setSelectedId] = useState<string>(externalSelectedId || 'greenhouse-1');
+  const [selectedId, setSelectedId] = useState<string>(externalSelectedId || (structures[0]?.id || 'greenhouse-1'));
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   // FarmVille Builder Drawer & Placement State
@@ -535,13 +884,16 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const dx = mouseX - ORIGIN_X;
-    const dy = mouseY - ORIGIN_Y;
+    const originX = 540;
+    const originY = 115 - ((gridCols + gridRows) - 22) * 5;
+
+    const dx = mouseX - originX;
+    const dy = mouseY - originY;
 
     const tx = Math.floor((dx / (TILE_W / 2) + dy / (TILE_H / 2)) / 2);
     const ty = Math.floor((dy / (TILE_H / 2) - dx / (TILE_W / 2)) / 2);
 
-    if (tx >= 0 && tx < GRID_COLS && ty >= 0 && ty < GRID_ROWS) {
+    if (tx >= 0 && tx < gridCols && ty >= 0 && ty < gridRows) {
       setHoveredTile({ x: tx, y: ty });
     } else {
       setHoveredTile(null);
@@ -550,27 +902,84 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
   // Check tile collision: Is target footprint clear of other structures?
   const checkTileCollision = (tx: number, ty: number, w: number, h: number, ignoreId?: string) => {
-    if (tx < 0 || ty < 0 || tx + w > GRID_COLS || ty + h > GRID_ROWS) {
+    if (tx < 0 || ty < 0 || tx + w > gridCols || ty + h > gridRows) {
       return false; // Out of bounds
     }
 
     for (const struct of structures) {
       if (ignoreId && struct.id === ignoreId) continue;
-      // Axis-aligned bounding box collision in tile grid
       const overlapX = tx < struct.tileX + struct.wTiles && tx + w > struct.tileX;
       const overlapY = ty < struct.tileY + struct.hTiles && ty + h > struct.tileY;
       if (overlapX && overlapY) {
-        return false; // Collision detected
+        return false;
       }
     }
-    return true; // Spot is valid
+    return true;
+  };
+
+  // Resizing Selected Structure (FarmVille Scalable Buildings)
+  const handleResizeSelected = (deltaW: number, deltaH: number) => {
+    if (!selectedStructure) return;
+    const newW = selectedStructure.wTiles + deltaW;
+    const newH = selectedStructure.hTiles + deltaH;
+    if (newW < 1 || newH < 1) return;
+
+    const isValid = checkTileCollision(
+      selectedStructure.tileX, 
+      selectedStructure.tileY, 
+      newW, 
+      newH, 
+      selectedStructure.id
+    );
+
+    if (!isValid) {
+      playSfx('error');
+      setToastMessage('Cannot expand building: Space obstructed or border reached!');
+      setSaveToast(true);
+      setTimeout(() => setSaveToast(false), 2000);
+      return;
+    }
+
+    setStructures(prev =>
+      prev.map(s =>
+        s.id === selectedStructure.id
+          ? { ...s, wTiles: newW, hTiles: newH }
+          : s
+      )
+    );
+    playSfx('rotate');
+    setToastMessage(`Resized ${selectedStructure.name} to ${newW} × ${newH} Tiles`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 1800);
+  };
+
+  // Farm Land Expansion / Grid Resizing (FarmVille Scalable Land)
+  const handleCycleGridSize = () => {
+    let nextCols = 12;
+    let nextRows = 10;
+    if (gridCols === 12) {
+      nextCols = 16;
+      nextRows = 12;
+    } else if (gridCols === 16) {
+      nextCols = 20;
+      nextRows = 14;
+    } else {
+      nextCols = 12;
+      nextRows = 10;
+    }
+
+    setGridCols(nextCols);
+    setGridRows(nextRows);
+    playSfx('place');
+    setToastMessage(`Expanded Farm Land to ${nextCols} × ${nextRows} Tiles!`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 2000);
   };
 
   // Place or Move Object on Click
   const handleTileClick = (tx: number, ty: number) => {
     if (activeTab !== 'build') return;
 
-    // Moving existing structure
     if (movingStructureId) {
       const moving = structures.find(s => s.id === movingStructureId);
       if (!moving) return;
@@ -593,7 +1002,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       return;
     }
 
-    // Placing new item from catalog
     if (!activePlacingItem) return;
 
     const w = placingDimensions.w;
@@ -628,20 +1036,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         doseCountHour: 22,
         doseCountTotal: 480
       },
-      metrics: {
-        ec: 2.25,
-        targetEc: 2.30,
-        ph: 5.82,
-        targetPh: 5.80,
-        vpd: 1.12,
-        vwc: 65.0,
-        waterTemp: 20.4
-      },
-      pumps: {
-        pumpA: 'IDLE',
-        pumpB: 'IDLE',
-        acid: 'IDLE'
-      }
+      metrics: { ec: 2.25, targetEc: 2.30, ph: 5.82, targetPh: 5.80, vpd: 1.12, vwc: 65.0, waterTemp: 20.4 },
+      pumps: { pumpA: 'IDLE', pumpB: 'IDLE', acid: 'IDLE' }
     };
 
     setStructures([...structures, newStruct]);
@@ -715,17 +1111,16 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
   // Render 3D Ground Base Slab & 1x1 Isometric Tile Grid
   const renderGroundSlab = () => {
-    const pTop0 = tileToScreen(0, 0, 0);
-    const pTop1 = tileToScreen(GRID_COLS, 0, 0);
-    const pTop2 = tileToScreen(GRID_COLS, GRID_ROWS, 0);
-    const pTop3 = tileToScreen(0, GRID_ROWS, 0);
+    const pTop0 = tileToScreen(0, 0, 0, gridCols, gridRows);
+    const pTop1 = tileToScreen(gridCols, 0, 0, gridCols, gridRows);
+    const pTop2 = tileToScreen(gridCols, gridRows, 0, gridCols, gridRows);
+    const pTop3 = tileToScreen(0, gridRows, 0, gridCols, gridRows);
 
     const SLAB_DEPTH = 18;
-    const pBot1 = tileToScreen(GRID_COLS, 0, -SLAB_DEPTH);
-    const pBot2 = tileToScreen(GRID_COLS, GRID_ROWS, -SLAB_DEPTH);
-    const pBot3 = tileToScreen(0, GRID_ROWS, -SLAB_DEPTH);
+    const pBot1 = tileToScreen(gridCols, 0, -SLAB_DEPTH, gridCols, gridRows);
+    const pBot2 = tileToScreen(gridCols, gridRows, -SLAB_DEPTH, gridCols, gridRows);
+    const pBot3 = tileToScreen(0, gridRows, -SLAB_DEPTH, gridCols, gridRows);
 
-    // Active footprint dimensions for placement ghost
     const activeW = movingStructureId 
       ? structures.find(s => s.id === movingStructureId)?.wTiles || 1
       : activePlacingItem ? placingDimensions.w : 0;
@@ -741,7 +1136,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       <g id="ground-slab">
         {/* Soft Ambient Ground Shadow */}
         <polygon
-          points={`${ptStr(tileToScreen(-0.5, -0.5, -SLAB_DEPTH - 8))} ${ptStr(tileToScreen(GRID_COLS + 0.5, -0.5, -SLAB_DEPTH - 8))} ${ptStr(tileToScreen(GRID_COLS + 0.5, GRID_ROWS + 0.5, -SLAB_DEPTH - 8))} ${ptStr(tileToScreen(-0.5, GRID_ROWS + 0.5, -SLAB_DEPTH - 8))}`}
+          points={`${ptStr(tileToScreen(-0.5, -0.5, -SLAB_DEPTH - 8, gridCols, gridRows))} ${ptStr(tileToScreen(gridCols + 0.5, -0.5, -SLAB_DEPTH - 8, gridCols, gridRows))} ${ptStr(tileToScreen(gridCols + 0.5, gridRows + 0.5, -SLAB_DEPTH - 8, gridCols, gridRows))} ${ptStr(tileToScreen(-0.5, gridRows + 0.5, -SLAB_DEPTH - 8, gridCols, gridRows))}`}
           fill="rgba(15, 23, 42, 0.08)"
           filter="blur(10px)"
         />
@@ -762,7 +1157,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           strokeWidth="0.8"
         />
 
-        {/* Top Slab Surface (Clean Light Farm Base) */}
+        {/* Top Slab Surface */}
         <polygon
           points={`${ptStr(pTop0)} ${ptStr(pTop1)} ${ptStr(pTop2)} ${ptStr(pTop3)}`}
           fill="#F8FAFC"
@@ -771,14 +1166,13 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         />
 
         {/* 1x1 Isometric Tile Grid Lines */}
-        {Array.from({ length: GRID_COLS }).map((_, cx) =>
-          Array.from({ length: GRID_ROWS }).map((_, cy) => {
-            const t0 = tileToScreen(cx, cy, 0);
-            const t1 = tileToScreen(cx + 1, cy, 0);
-            const t2 = tileToScreen(cx + 1, cy + 1, 0);
-            const t3 = tileToScreen(cx, cy + 1, 0);
+        {Array.from({ length: gridCols }).map((_, cx) =>
+          Array.from({ length: gridRows }).map((_, cy) => {
+            const t0 = tileToScreen(cx, cy, 0, gridCols, gridRows);
+            const t1 = tileToScreen(cx + 1, cy, 0, gridCols, gridRows);
+            const t2 = tileToScreen(cx + 1, cy + 1, 0, gridCols, gridRows);
+            const t3 = tileToScreen(cx, cy + 1, 0, gridCols, gridRows);
 
-            // Is this tile inside hovered placement footprint?
             const inFootprint = hoveredTile && (activePlacingItem || movingStructureId) &&
               cx >= hoveredTile.x && cx < hoveredTile.x + activeW &&
               cy >= hoveredTile.y && cy < hoveredTile.y + activeH;
@@ -809,7 +1203,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     );
   };
 
-  // Render Venlo Glasshouse Bay
+  // Render Venlo Glasshouse Bay (Parametric to wTiles and hTiles)
   const renderGreenhouse = (s: TileStructure) => {
     const isSelected = selectedId === s.id;
     const isHovered = hoveredId === s.id;
@@ -819,24 +1213,24 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     const wallH = 34;
     const ridgeH = 50;
 
-    const p0 = tileToScreen(s.tileX, s.tileY, baseZ);
-    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, baseZ);
-    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, baseZ);
-    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, baseZ);
+    const p0 = tileToScreen(s.tileX, s.tileY, baseZ, gridCols, gridRows);
+    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, baseZ, gridCols, gridRows);
+    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, baseZ, gridCols, gridRows);
+    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, baseZ, gridCols, gridRows);
 
-    const w0Top = tileToScreen(s.tileX, s.tileY, wallH);
-    const w1Top = tileToScreen(s.tileX + s.wTiles, s.tileY, wallH);
-    const w2Top = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, wallH);
-    const w3Top = tileToScreen(s.tileX, s.tileY + s.hTiles, wallH);
+    const w0Top = tileToScreen(s.tileX, s.tileY, wallH, gridCols, gridRows);
+    const w1Top = tileToScreen(s.tileX + s.wTiles, s.tileY, wallH, gridCols, gridRows);
+    const w2Top = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, wallH, gridCols, gridRows);
+    const w3Top = tileToScreen(s.tileX, s.tileY + s.hTiles, wallH, gridCols, gridRows);
 
     const midY1 = s.tileY + s.hTiles * 0.25;
     const midY2 = s.tileY + s.hTiles * 0.75;
-    const r1Start = tileToScreen(s.tileX, midY1, ridgeH);
-    const r1End = tileToScreen(s.tileX + s.wTiles, midY1, ridgeH);
-    const r2Start = tileToScreen(s.tileX, midY2, ridgeH);
-    const r2End = tileToScreen(s.tileX + s.wTiles, midY2, ridgeH);
+    const r1Start = tileToScreen(s.tileX, midY1, ridgeH, gridCols, gridRows);
+    const r1End = tileToScreen(s.tileX + s.wTiles, midY1, ridgeH, gridCols, gridRows);
+    const r2Start = tileToScreen(s.tileX, midY2, ridgeH, gridCols, gridRows);
+    const r2End = tileToScreen(s.tileX + s.wTiles, midY2, ridgeH, gridCols, gridRows);
 
-    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, ridgeH + 16);
+    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, ridgeH + 16, gridCols, gridRows);
 
     return (
       <g
@@ -851,114 +1245,60 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         onMouseLeave={() => setHoveredId(null)}
         style={{ cursor: 'pointer' }}
       >
-        {/* Footprint highlight */}
         <polygon
           points={`${ptStr(p0)} ${ptStr(p1)} ${ptStr(p2)} ${ptStr(p3)}`}
-          fill={isSelected ? 'rgba(16, 185, 129, 0.25)' : isHovered ? 'rgba(56, 189, 248, 0.15)' : 'rgba(241, 245, 249, 0.8)'}
+          fill={isSelected ? 'rgba(16, 185, 129, 0.22)' : isHovered ? 'rgba(56, 189, 248, 0.15)' : 'rgba(240, 253, 244, 0.75)'}
           stroke={isSelected ? '#10B981' : isHovered ? '#38BDF8' : '#CBD5E1'}
           strokeWidth={isSelected ? 2 : 1}
         />
-
-        {/* Crops */}
-        {Array.from({ length: 3 }).map((_, i) => {
-          const rowY = s.tileY + 0.5 + i * 0.7;
-          const rA = tileToScreen(s.tileX + 0.3, rowY, baseZ + 3);
-          const rB = tileToScreen(s.tileX + s.wTiles - 0.3, rowY, baseZ + 3);
-          return (
-            <line
-              key={`crop-${i}`}
-              x1={rA[0]}
-              y1={rA[1]}
-              x2={rB[0]}
-              y2={rB[1]}
-              stroke="#10B981"
-              strokeWidth="4"
-              strokeLinecap="round"
-              opacity="0.85"
-            />
-          );
-        })}
-
-        {/* Glass walls */}
         <polygon
           points={`${ptStr(p1)} ${ptStr(p2)} ${ptStr(w2Top)} ${ptStr(w1Top)}`}
-          fill="rgba(203, 213, 225, 0.45)"
-          stroke="#64748B"
-          strokeWidth="1"
+          fill="rgba(241, 245, 249, 0.6)"
+          stroke="#94A3B8"
+          strokeWidth="0.8"
         />
         <polygon
           points={`${ptStr(p3)} ${ptStr(p2)} ${ptStr(w2Top)} ${ptStr(w3Top)}`}
-          fill="rgba(148, 163, 184, 0.5)"
-          stroke="#64748B"
-          strokeWidth="1"
-        />
-
-        {/* Peaked roofs */}
-        <polygon
-          points={`${ptStr(r1Start)} ${ptStr(r1End)} ${ptStr(w1Top)} ${ptStr(w0Top)}`}
-          fill="rgba(241, 245, 249, 0.75)"
+          fill="rgba(203, 213, 225, 0.7)"
           stroke="#64748B"
           strokeWidth="0.8"
         />
-        <polygon
-          points={`${ptStr(r1Start)} ${ptStr(r1End)} ${ptStr(r2End)} ${ptStr(r2Start)}`}
-          fill="rgba(226, 232, 240, 0.8)"
-          stroke="#64748B"
-          strokeWidth="0.8"
-        />
-        <polygon
-          points={`${ptStr(r2Start)} ${ptStr(r2End)} ${ptStr(w2Top)} ${ptStr(w3Top)}`}
-          fill="rgba(203, 213, 225, 0.75)"
-          stroke="#64748B"
-          strokeWidth="0.8"
-        />
+        <line x1={w0Top[0]} y1={w0Top[1]} x2={w1Top[0]} y2={w1Top[1]} stroke="#64748B" strokeWidth="1" />
+        <line x1={w1Top[0]} y1={w1Top[1]} x2={w2Top[0]} y2={w2Top[1]} stroke="#64748B" strokeWidth="1" />
+        <line x1={w2Top[0]} y1={w2Top[1]} x2={w3Top[0]} y2={w3Top[1]} stroke="#64748B" strokeWidth="1" />
+        <line x1={w3Top[0]} y1={w3Top[1]} x2={w0Top[0]} y2={w0Top[1]} stroke="#64748B" strokeWidth="1" />
 
-        <line x1={r1Start[0]} y1={r1Start[1]} x2={r1End[0]} y2={r1End[1]} stroke="#334155" strokeWidth="1.2" />
-        <line x1={r2Start[0]} y1={r2Start[1]} x2={r2End[0]} y2={r2End[1]} stroke="#334155" strokeWidth="1.2" />
+        <polygon points={`${ptStr(w0Top)} ${ptStr(w1Top)} ${ptStr(r1End)} ${ptStr(r1Start)}`} fill="rgba(186, 230, 253, 0.45)" stroke="#38BDF8" strokeWidth="0.8" />
+        <polygon points={`${ptStr(r1Start)} ${ptStr(r1End)} ${ptStr(r2End)} ${ptStr(r2Start)}`} fill="rgba(224, 242, 254, 0.35)" stroke="#38BDF8" strokeWidth="0.8" />
+        <polygon points={`${ptStr(r2Start)} ${ptStr(r2End)} ${ptStr(w2Top)} ${ptStr(w3Top)}`} fill="rgba(186, 230, 253, 0.45)" stroke="#38BDF8" strokeWidth="0.8" />
 
-        {/* Mounted MultiGrow Controller on external wall */}
         {layers.controllers && (
-          <g transform={`translate(${p2[0] - 12}, ${p2[1] - 28})`}>
-            <rect x="0" y="0" width="24" height="18" rx="3" fill="#0F172A" stroke="#10B981" strokeWidth="1" />
-            <circle cx="5" cy="5" r="1.5" fill="#10B981" />
-            <rect x="9" y="3" width="11" height="5" rx="1" fill="#1E293B" />
-            <line x1="18" y1="0" x2="18" y2="-5" stroke="#38BDF8" strokeWidth="1" />
-            <circle cx="18" cy="-5" r="1.2" fill="#38BDF8" />
+          <g transform={`translate(${centerPoint[0]}, ${centerPoint[1] + 10})`}>
+            <circle cx="0" cy="0" r="10" fill="#0F172A" stroke="#10B981" strokeWidth="1.5" />
+            <circle cx="0" cy="0" r="3.5" fill="#10B981" />
+            <line x1="0" y1="-10" x2="0" y2="-17" stroke="#10B981" strokeWidth="1.2" />
+            <circle cx="0" cy="-18" r="1.5" fill="#34D399" />
           </g>
         )}
 
-        {/* Floating Telemetry Tag */}
         {layers.sensors && (
-          <g transform={`translate(${centerPoint[0]}, ${centerPoint[1]})`}>
+          <g transform={`translate(${centerPoint[0]}, ${centerPoint[1] - 8})`}>
             <rect
-              x="-48"
-              y="-12"
-              width="96"
-              height="22"
-              rx="11"
+              x="-36"
+              y="-10"
+              width="72"
+              height="20"
+              rx="10"
               fill="#FFFFFF"
               stroke={isSelected ? '#10B981' : '#E2E8F0'}
               strokeWidth={isSelected ? 1.5 : 1}
-              filter="drop-shadow(0 2px 5px rgba(0,0,0,0.1))"
+              filter="drop-shadow(0 2px 4px rgba(0,0,0,0.08))"
             />
-            <circle cx="-38" cy="-1" r="3" fill={s.controller.status === 'ATTENTION' ? '#F59E0B' : '#10B981'} />
-            <text
-              x="-30"
-              y="3"
-              fill="#0F172A"
-              fontSize="10"
-              fontWeight="700"
-              fontFamily="monospace"
-            >
+            <circle cx="-28" cy="0" r="3" fill="#10B981" />
+            <text x="-21" y="3.5" fill="#0F172A" fontSize="9" fontWeight="800" fontFamily="monospace">
               EC {s.metrics.ec.toFixed(2)}
             </text>
-            <text
-              x="14"
-              y="3"
-              fill="#64748B"
-              fontSize="9"
-              fontFamily="monospace"
-            >
+            <text x="18" y="3" fill="#64748B" fontSize="8" fontFamily="monospace">
               pH {s.metrics.ph.toFixed(1)}
             </text>
           </g>
@@ -967,21 +1307,18 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     );
   };
 
-  // Render NFT Gutter Beds
+  // Render Hydroponic Gutter Beds (Parametric to wTiles and hTiles)
   const renderGutterBeds = (s: TileStructure) => {
     const isSelected = selectedId === s.id;
     const isHovered = hoveredId === s.id;
     const isBeingMoved = movingStructureId === s.id;
 
-    const baseZ = 2;
-    const bedH = 12;
+    const p0 = tileToScreen(s.tileX, s.tileY, 1, gridCols, gridRows);
+    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, 1, gridCols, gridRows);
+    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, 1, gridCols, gridRows);
+    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, 1, gridCols, gridRows);
 
-    const p0 = tileToScreen(s.tileX, s.tileY, baseZ);
-    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, baseZ);
-    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, baseZ);
-    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, baseZ);
-
-    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, bedH + 16);
+    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, 22, gridCols, gridRows);
 
     return (
       <g
@@ -998,98 +1335,65 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       >
         <polygon
           points={`${ptStr(p0)} ${ptStr(p1)} ${ptStr(p2)} ${ptStr(p3)}`}
-          fill={isSelected ? 'rgba(16, 185, 129, 0.25)' : isHovered ? 'rgba(56, 189, 248, 0.15)' : 'rgba(241, 245, 249, 0.8)'}
+          fill={isSelected ? 'rgba(16, 185, 129, 0.25)' : isHovered ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.95)'}
           stroke={isSelected ? '#10B981' : isHovered ? '#38BDF8' : '#CBD5E1'}
           strokeWidth={isSelected ? 2 : 1}
         />
 
-        {Array.from({ length: 4 }).map((_, i) => {
-          const gy = s.tileY + 0.3 + i * 0.42;
-          const gStart = tileToScreen(s.tileX + 0.2, gy, bedH);
-          const gEnd = tileToScreen(s.tileX + s.wTiles - 0.2, gy, bedH);
-
+        {Array.from({ length: Math.max(3, s.hTiles * 3) }).map((_, gi) => {
+          const stepY = s.tileY + (gi + 0.5) * (s.hTiles / (s.hTiles * 3));
+          const gStart = tileToScreen(s.tileX + 0.1, stepY, 2, gridCols, gridRows);
+          const gEnd = tileToScreen(s.tileX + s.wTiles - 0.1, stepY, 2, gridCols, gridRows);
           return (
-            <g key={`gutter-${i}`}>
-              <line
-                x1={gStart[0]}
-                y1={gStart[1]}
-                x2={gEnd[0]}
-                y2={gEnd[1]}
-                stroke="#FFFFFF"
-                strokeWidth="7"
-                strokeLinecap="round"
-              />
-              <line
-                x1={gStart[0]}
-                y1={gStart[1]}
-                x2={gEnd[0]}
-                y2={gEnd[1]}
-                stroke="#CBD5E1"
-                strokeWidth="7.8"
-                strokeLinecap="round"
-                opacity="0.5"
-              />
-              {Array.from({ length: 5 }).map((_, lx) => {
-                const lp = tileToScreen(s.tileX + 0.4 + lx * 0.7, gy, bedH + 2);
-                return (
-                  <circle
-                    key={`lettuce-${i}-${lx}`}
-                    cx={lp[0]}
-                    cy={lp[1]}
-                    r="3.5"
-                    fill="#10B981"
-                    stroke="#059669"
-                    strokeWidth="0.6"
-                  />
-                );
-              })}
-            </g>
+            <line
+              key={`channel-${gi}`}
+              x1={gStart[0]}
+              y1={gStart[1]}
+              x2={gEnd[0]}
+              y2={gEnd[1]}
+              stroke="#E2E8F0"
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
           );
         })}
 
-        {/* Mounted Autogrow EC Mini Controller on Post */}
-        {layers.controllers && (
-          <g transform={`translate(${p1[0] - 8}, ${p1[1] - 32})`}>
-            <line x1="8" y1="20" x2="8" y2="30" stroke="#64748B" strokeWidth="2" />
-            <rect x="0" y="0" width="16" height="22" rx="3" fill="#FFFFFF" stroke="#0F172A" strokeWidth="1" />
-            <rect x="3" y="4" width="10" height="6" rx="1" fill="#0F2B1D" stroke="#10B981" strokeWidth="0.5" />
-            <circle cx="12" cy="13" r="1.2" fill="#F59E0B" />
-            <rect x="3" y="19" width="10" height="3" fill="#10B981" />
-          </g>
+        {Array.from({ length: s.wTiles * 2 }).map((_, ci) =>
+          Array.from({ length: s.hTiles * 2 }).map((_, rj) => {
+            const cropPt = tileToScreen(s.tileX + (ci + 0.5) * 0.5, s.tileY + (rj + 0.5) * 0.5, 5, gridCols, gridRows);
+            return (
+              <circle
+                key={`crop-${ci}-${rj}`}
+                cx={cropPt[0]}
+                cy={cropPt[1]}
+                r="3.5"
+                fill="#10B981"
+                stroke="#047857"
+                strokeWidth="0.5"
+              />
+            );
+          })
         )}
 
         {layers.sensors && (
           <g transform={`translate(${centerPoint[0]}, ${centerPoint[1]})`}>
             <rect
-              x="-48"
-              y="-12"
-              width="96"
-              height="22"
-              rx="11"
+              x="-45"
+              y="-10"
+              width="90"
+              height="20"
+              rx="10"
               fill="#FFFFFF"
-              stroke={isSelected ? '#10B981' : '#E2E8F0'}
-              strokeWidth={isSelected ? 1.5 : 1}
-              filter="drop-shadow(0 2px 5px rgba(0,0,0,0.1))"
+              stroke={s.controller.status === 'ATTENTION' ? '#F59E0B' : '#E2E8F0'}
+              strokeWidth="1.2"
+              filter="drop-shadow(0 2px 4px rgba(0,0,0,0.08))"
             />
-            <circle cx="-38" cy="-1" r="3" fill={s.controller.status === 'ATTENTION' ? '#F59E0B' : '#10B981'} />
-            <text
-              x="-30"
-              y="3"
-              fill="#0F172A"
-              fontSize="10"
-              fontWeight="700"
-              fontFamily="monospace"
-            >
+            <circle cx="-36" cy="0" r="3" fill={s.controller.status === 'ATTENTION' ? '#F59E0B' : '#10B981'} />
+            <text x="-29" y="3.5" fill="#0F172A" fontSize="9" fontWeight="800" fontFamily="monospace">
               EC {s.metrics.ec.toFixed(2)}
             </text>
-            <text
-              x="14"
-              y="3"
-              fill="#64748B"
-              fontSize="9"
-              fontFamily="monospace"
-            >
-              NFT 1.6mS
+            <text x="18" y="3" fill="#64748B" fontSize="7.5" fontFamily="monospace">
+              NFT
             </text>
           </g>
         )}
@@ -1097,27 +1401,22 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     );
   };
 
-  // Render Fertigation Silos Skid
+  // Render Silos & Tank Station
   const renderSilos = (s: TileStructure) => {
     const isSelected = selectedId === s.id;
     const isHovered = hoveredId === s.id;
     const isBeingMoved = movingStructureId === s.id;
 
-    const baseZ = 2;
-    const tankH = 38;
+    const p0 = tileToScreen(s.tileX, s.tileY, 1, gridCols, gridRows);
+    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, 1, gridCols, gridRows);
+    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, 1, gridCols, gridRows);
+    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, 1, gridCols, gridRows);
 
-    const p0 = tileToScreen(s.tileX, s.tileY, baseZ);
-    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, baseZ);
-    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, baseZ);
-    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, baseZ);
+    const silo1Base = tileToScreen(s.tileX + 0.8, s.tileY + s.hTiles / 2, 2, gridCols, gridRows);
+    const silo2Base = tileToScreen(s.tileX + s.wTiles - 0.8, s.tileY + s.hTiles / 2, 2, gridCols, gridRows);
+    const siloHeight = 42;
 
-    const tankA_base = tileToScreen(s.tileX + 0.8, s.tileY + 0.9, baseZ);
-    const tankA_top = tileToScreen(s.tileX + 0.8, s.tileY + 0.9, tankH);
-
-    const tankB_base = tileToScreen(s.tileX + 2.0, s.tileY + 0.9, baseZ);
-    const tankB_top = tileToScreen(s.tileX + 2.0, s.tileY + 0.9, tankH);
-
-    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, tankH + 16);
+    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, siloHeight + 14, gridCols, gridRows);
 
     return (
       <g
@@ -1134,93 +1433,43 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       >
         <polygon
           points={`${ptStr(p0)} ${ptStr(p1)} ${ptStr(p2)} ${ptStr(p3)}`}
-          fill={isSelected ? 'rgba(16, 185, 129, 0.25)' : isHovered ? 'rgba(56, 189, 248, 0.15)' : 'rgba(241, 245, 249, 0.8)'}
-          stroke={isSelected ? '#10B981' : isHovered ? '#38BDF8' : '#CBD5E1'}
+          fill={isSelected ? 'rgba(16, 185, 129, 0.25)' : isHovered ? 'rgba(56, 189, 248, 0.15)' : 'rgba(226, 232, 240, 0.8)'}
+          stroke={isSelected ? '#10B981' : isHovered ? '#38BDF8' : '#94A3B8'}
           strokeWidth={isSelected ? 2 : 1}
         />
 
-        {/* Tank A */}
-        <g>
-          <rect
-            x={tankA_top[0] - 16}
-            y={tankA_top[1]}
-            width="32"
-            height={tankA_base[1] - tankA_top[1]}
-            fill="url(#siloGradient)"
-            stroke="#64748B"
-            strokeWidth="1"
-          />
-          <ellipse cx={tankA_top[0]} cy={tankA_top[1]} rx="16" ry="8" fill="#E2E8F0" stroke="#64748B" strokeWidth="1" />
-          <ellipse cx={tankA_base[0]} cy={tankA_base[1]} rx="16" ry="8" fill="#94A3B8" opacity="0.4" />
-          <rect x={tankA_top[0] - 3} y={tankA_top[1] + 6} width="6" height="24" rx="2" fill="#0F172A" />
-          <rect x={tankA_top[0] - 2} y={tankA_top[1] + 10} width="4" height="18" rx="1" fill="#38BDF8" />
-          <text x={tankA_top[0]} y={tankA_top[1] - 10} fill="#0F172A" fontSize="9" fontWeight="800" textAnchor="middle">
-            TANK A
-          </text>
+        {/* Silo Tank 1 */}
+        <g transform={`translate(${silo1Base[0]}, ${silo1Base[1]})`}>
+          <ellipse cx="0" cy="0" rx="14" ry="7" fill="#64748B" opacity="0.4" />
+          <path d={`M -13,0 L -13,-${siloHeight} A 13,6.5 0 0,1 13,-${siloHeight} L 13,0 A 13,6.5 0 0,1 -13,0 Z`} fill="url(#siloGradient)" stroke="#64748B" strokeWidth="0.8" />
+          <ellipse cx="0" cy={`-${siloHeight}`} rx="13" ry="6.5" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="0.8" />
+          <rect x="-1" y={`-${siloHeight * 0.7}`} width="2" height={siloHeight * 0.6} fill="#38BDF8" rx="1" />
         </g>
 
-        {/* Tank B */}
-        <g>
-          <rect
-            x={tankB_top[0] - 16}
-            y={tankB_top[1]}
-            width="32"
-            height={tankB_base[1] - tankB_top[1]}
-            fill="url(#siloGradient)"
-            stroke="#64748B"
-            strokeWidth="1"
-          />
-          <ellipse cx={tankB_top[0]} cy={tankB_top[1]} rx="16" ry="8" fill="#E2E8F0" stroke="#64748B" strokeWidth="1" />
-          <ellipse cx={tankB_base[0]} cy={tankB_base[1]} rx="16" ry="8" fill="#94A3B8" opacity="0.4" />
-          <rect x={tankB_top[0] - 3} y={tankB_top[1] + 6} width="6" height="24" rx="2" fill="#0F172A" />
-          <rect x={tankB_top[0] - 2} y={tankB_top[1] + 14} width="4" height="14" rx="1" fill="#F59E0B" />
-          <text x={tankB_top[0]} y={tankB_top[1] - 10} fill="#0F172A" fontSize="9" fontWeight="800" textAnchor="middle">
-            TANK B
-          </text>
+        {/* Silo Tank 2 */}
+        <g transform={`translate(${silo2Base[0]}, ${silo2Base[1]})`}>
+          <ellipse cx="0" cy="0" rx="14" ry="7" fill="#64748B" opacity="0.4" />
+          <path d={`M -13,0 L -13,-${siloHeight} A 13,6.5 0 0,1 13,-${siloHeight} L 13,0 A 13,6.5 0 0,1 -13,0 Z`} fill="url(#siloGradient)" stroke="#64748B" strokeWidth="0.8" />
+          <ellipse cx="0" cy={`-${siloHeight}`} rx="13" ry="6.5" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="0.8" />
+          <rect x="-1" y={`-${siloHeight * 0.85}`} width="2" height={siloHeight * 0.8} fill="#F59E0B" rx="1" />
         </g>
-
-        {/* Manifold Pipe */}
-        <line
-          x1={tankA_base[0] + 16}
-          y1={tankA_base[1] - 4}
-          x2={tankB_base[0] - 16}
-          y2={tankB_base[1] - 4}
-          stroke="#0284C7"
-          strokeWidth="3"
-        />
 
         {layers.sensors && (
           <g transform={`translate(${centerPoint[0]}, ${centerPoint[1]})`}>
             <rect
-              x="-48"
-              y="-12"
-              width="96"
-              height="22"
-              rx="11"
+              x="-40"
+              y="-10"
+              width="80"
+              height="20"
+              rx="10"
               fill="#FFFFFF"
               stroke={isSelected ? '#10B981' : '#E2E8F0'}
-              strokeWidth={isSelected ? 1.5 : 1}
-              filter="drop-shadow(0 2px 5px rgba(0,0,0,0.1))"
+              strokeWidth="1.2"
+              filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
             />
-            <circle cx="-38" cy="-1" r="3" fill="#10B981" />
-            <text
-              x="-30"
-              y="3"
-              fill="#0F172A"
-              fontSize="10"
-              fontWeight="700"
-              fontFamily="monospace"
-            >
+            <circle cx="-32" cy="0" r="3" fill="#10B981" />
+            <text x="-25" y="3.5" fill="#0F172A" fontSize="9" fontWeight="800" fontFamily="monospace">
               SILOS 85%
-            </text>
-            <text
-              x="22"
-              y="3"
-              fill="#64748B"
-              fontSize="9"
-              fontFamily="monospace"
-            >
-              2.8mS
             </text>
           </g>
         )}
@@ -1237,17 +1486,17 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     const baseZ = 2;
     const houseH = 30;
 
-    const p0 = tileToScreen(s.tileX, s.tileY, baseZ);
-    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, baseZ);
-    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, baseZ);
-    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, baseZ);
+    const p0 = tileToScreen(s.tileX, s.tileY, baseZ, gridCols, gridRows);
+    const p1 = tileToScreen(s.tileX + s.wTiles, s.tileY, baseZ, gridCols, gridRows);
+    const p2 = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, baseZ, gridCols, gridRows);
+    const p3 = tileToScreen(s.tileX, s.tileY + s.hTiles, baseZ, gridCols, gridRows);
 
-    const w0Top = tileToScreen(s.tileX, s.tileY, houseH);
-    const w1Top = tileToScreen(s.tileX + s.wTiles, s.tileY, houseH);
-    const w2Top = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, houseH);
-    const w3Top = tileToScreen(s.tileX, s.tileY + s.hTiles, houseH);
+    const w0Top = tileToScreen(s.tileX, s.tileY, houseH, gridCols, gridRows);
+    const w1Top = tileToScreen(s.tileX + s.wTiles, s.tileY, houseH, gridCols, gridRows);
+    const w2Top = tileToScreen(s.tileX + s.wTiles, s.tileY + s.hTiles, houseH, gridCols, gridRows);
+    const w3Top = tileToScreen(s.tileX, s.tileY + s.hTiles, houseH, gridCols, gridRows);
 
-    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, houseH + 16);
+    const centerPoint = tileToScreen(s.tileX + s.wTiles / 2, s.tileY + s.hTiles / 2, houseH + 16, gridCols, gridRows);
 
     return (
       <g
@@ -1286,25 +1535,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           stroke="#94A3B8"
           strokeWidth="1"
         />
-        <rect
-          x={w0Top[0] + 10}
-          y={w0Top[1] + 4}
-          width="28"
-          height="14"
-          rx="1"
-          fill="#1E293B"
-          stroke="#38BDF8"
-          strokeWidth="0.8"
-        />
-        <rect
-          x={p2[0] - 22}
-          y={p2[1] - 16}
-          width="18"
-          height="14"
-          fill="#475569"
-          stroke="#334155"
-          strokeWidth="0.8"
-        />
 
         {layers.sensors && (
           <g transform={`translate(${centerPoint[0]}, ${centerPoint[1]})`}>
@@ -1320,23 +1550,10 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
               filter="drop-shadow(0 2px 5px rgba(0,0,0,0.1))"
             />
             <circle cx="-38" cy="-1" r="3" fill="#10B981" />
-            <text
-              x="-30"
-              y="3"
-              fill="#0F172A"
-              fontSize="10"
-              fontWeight="700"
-              fontFamily="monospace"
-            >
+            <text x="-30" y="3" fill="#0F172A" fontSize="10" fontWeight="700" fontFamily="monospace">
               PACKHOUSE
             </text>
-            <text
-              x="25"
-              y="3"
-              fill="#10B981"
-              fontSize="9"
-              fontFamily="monospace"
-            >
+            <text x="25" y="3" fill="#10B981" fontSize="9" fontFamily="monospace">
               95%
             </text>
           </g>
@@ -1352,7 +1569,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     const isBeingMoved = movingStructureId === s.id;
 
     const baseZ = 2;
-    const center = tileToScreen(s.tileX + 0.5, s.tileY + 0.5, baseZ);
+    const center = tileToScreen(s.tileX + 0.5, s.tileY + 0.5, baseZ, gridCols, gridRows);
 
     return (
       <g
@@ -1375,9 +1592,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           stroke="#10B981" 
           strokeWidth={isSelected ? 2.5 : (isHovered ? 2 : 1.5)} 
         />
-        {/* Pedestal */}
         <line x1={center[0]} y1={center[1]} x2={center[0]} y2={center[1] - 22} stroke="#475569" strokeWidth="2.5" />
-        {/* EC Mini Box */}
         <g transform={`translate(${center[0] - 10}, ${center[1] - 38})`}>
           <rect x="0" y="0" width="20" height="16" rx="3" fill="#FFFFFF" stroke="#0F172A" strokeWidth="1" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.15))" />
           <rect x="3" y="3" width="14" height="6" rx="1" fill="#0F2B1D" />
@@ -1390,96 +1605,49 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
   // Render WarehouseOS Miniature Delivery Truck
   const renderDeliveryTruck = (key: string, tx: number, ty: number) => {
-    const pA = tileToScreen(tx, ty, 0);
-    const pD = tileToScreen(tx, ty + 0.9, 0);
+    const pA = tileToScreen(tx, ty, 0, gridCols, gridRows);
+    const pD = tileToScreen(tx, ty + 0.9, 0, gridCols, gridRows);
 
     const trailerH = 18;
     const cabH = 14;
 
-    const trailerA = tileToScreen(tx, ty, trailerH);
-    const trailerB = tileToScreen(tx + 1.1, ty, trailerH);
-    const trailerC = tileToScreen(tx + 1.1, ty + 0.9, trailerH);
-    const trailerD = tileToScreen(tx, ty + 0.9, trailerH);
+    const trailerA = tileToScreen(tx, ty, trailerH, gridCols, gridRows);
+    const trailerB = tileToScreen(tx + 1.1, ty, trailerH, gridCols, gridRows);
+    const trailerC = tileToScreen(tx + 1.1, ty + 0.9, trailerH, gridCols, gridRows);
+    const trailerD = tileToScreen(tx, ty + 0.9, trailerH, gridCols, gridRows);
 
-    const cabA = tileToScreen(tx + 1.1, ty + 0.1, cabH);
-    const cabB = tileToScreen(tx + 1.7, ty + 0.1, cabH);
-    const cabC = tileToScreen(tx + 1.7, ty + 0.8, cabH);
-    const cabD = tileToScreen(tx + 1.1, ty + 0.8, cabH);
+    const cabA = tileToScreen(tx + 1.1, ty + 0.1, cabH, gridCols, gridRows);
+    const cabB = tileToScreen(tx + 1.7, ty + 0.1, cabH, gridCols, gridRows);
+    const cabC = tileToScreen(tx + 1.7, ty + 0.8, cabH, gridCols, gridRows);
+    const cabD = tileToScreen(tx + 1.1, ty + 0.8, cabH, gridCols, gridRows);
 
     return (
       <g key={key} id={`truck-${key}`} style={{ pointerEvents: 'none' }}>
-        {/* Soft Shadow */}
         <polygon
-          points={`${ptStr(tileToScreen(tx - 0.1, ty - 0.1, 0))} ${ptStr(tileToScreen(tx + 1.8, ty - 0.1, 0))} ${ptStr(tileToScreen(tx + 1.8, ty + 1.0, 0))} ${ptStr(tileToScreen(tx - 0.1, ty + 1.0, 0))}`}
+          points={`${ptStr(tileToScreen(tx - 0.1, ty - 0.1, 0, gridCols, gridRows))} ${ptStr(tileToScreen(tx + 1.8, ty - 0.1, 0, gridCols, gridRows))} ${ptStr(tileToScreen(tx + 1.8, ty + 1.0, 0, gridCols, gridRows))} ${ptStr(tileToScreen(tx - 0.1, ty + 1.0, 0, gridCols, gridRows))}`}
           fill="rgba(15, 23, 42, 0.2)"
         />
-        {/* Blue Cargo Container Box */}
-        <polygon
-          points={`${ptStr(tileToScreen(tx, ty + 0.9, 0))} ${ptStr(tileToScreen(tx + 1.1, ty + 0.9, 0))} ${ptStr(trailerC)} ${ptStr(trailerD)}`}
-          fill="#2563EB"
-          stroke="#1D4ED8"
-          strokeWidth="0.5"
-        />
-        <polygon
-          points={`${ptStr(trailerA)} ${ptStr(trailerB)} ${ptStr(trailerC)} ${ptStr(trailerD)}`}
-          fill="#3B82F6"
-          stroke="#2563EB"
-          strokeWidth="0.5"
-        />
-        <polygon
-          points={`${ptStr(pA)} ${ptStr(pD)} ${ptStr(trailerD)} ${ptStr(trailerA)}`}
-          fill="#1E40AF"
-          stroke="#1E3A8A"
-          strokeWidth="0.5"
-        />
-
-        {/* White Tractor Cab */}
-        <polygon
-          points={`${ptStr(tileToScreen(tx + 1.1, ty + 0.8, 0))} ${ptStr(tileToScreen(tx + 1.7, ty + 0.8, 0))} ${ptStr(cabC)} ${ptStr(cabD)}`}
-          fill="#E2E8F0"
-          stroke="#94A3B8"
-          strokeWidth="0.5"
-        />
-        <polygon
-          points={`${ptStr(cabA)} ${ptStr(cabB)} ${ptStr(cabC)} ${ptStr(cabD)}`}
-          fill="#FFFFFF"
-          stroke="#CBD5E1"
-          strokeWidth="0.5"
-        />
-        {/* Windshield */}
-        <polygon
-          points={`${ptStr(tileToScreen(tx + 1.65, ty + 0.2, cabH - 2))} ${ptStr(tileToScreen(tx + 1.65, ty + 0.7, cabH - 2))} ${ptStr(tileToScreen(tx + 1.5, ty + 0.7, cabH + 1))} ${ptStr(tileToScreen(tx + 1.5, ty + 0.2, cabH + 1))}`}
-          fill="#0284C7"
-        />
-        {/* Headlights */}
-        <circle cx={tileToScreen(tx + 1.7, ty + 0.25, 3)[0]} cy={tileToScreen(tx + 1.7, ty + 0.25, 3)[1]} r="1.5" fill="#FEF08A" />
-        <circle cx={tileToScreen(tx + 1.7, ty + 0.65, 3)[0]} cy={tileToScreen(tx + 1.7, ty + 0.65, 3)[1]} r="1.5" fill="#FEF08A" />
+        <polygon points={`${ptStr(tileToScreen(tx, ty + 0.9, 0, gridCols, gridRows))} ${ptStr(tileToScreen(tx + 1.1, ty + 0.9, 0, gridCols, gridRows))} ${ptStr(trailerC)} ${ptStr(trailerD)}`} fill="#2563EB" stroke="#1D4ED8" strokeWidth="0.5" />
+        <polygon points={`${ptStr(trailerA)} ${ptStr(trailerB)} ${ptStr(trailerC)} ${ptStr(trailerD)}`} fill="#3B82F6" stroke="#2563EB" strokeWidth="0.5" />
+        <polygon points={`${ptStr(pA)} ${ptStr(pD)} ${ptStr(trailerD)} ${ptStr(trailerA)}`} fill="#1E40AF" stroke="#1E3A8A" strokeWidth="0.5" />
+        <polygon points={`${ptStr(tileToScreen(tx + 1.1, ty + 0.8, 0, gridCols, gridRows))} ${ptStr(tileToScreen(tx + 1.7, ty + 0.8, 0, gridCols, gridRows))} ${ptStr(cabC)} ${ptStr(cabD)}`} fill="#E2E8F0" stroke="#94A3B8" strokeWidth="0.5" />
+        <polygon points={`${ptStr(cabA)} ${ptStr(cabB)} ${ptStr(cabC)} ${ptStr(cabD)}`} fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="0.5" />
       </g>
     );
   };
 
   // Render Miniature Cypress/Conifer Perimeter Trees
   const renderTree = (key: string, tx: number, ty: number) => {
-    const base = tileToScreen(tx + 0.5, ty + 0.5, 0);
-    const mid = tileToScreen(tx + 0.5, ty + 0.5, 14);
-    const tip = tileToScreen(tx + 0.5, ty + 0.5, 26);
+    const base = tileToScreen(tx + 0.5, ty + 0.5, 0, gridCols, gridRows);
+    const mid = tileToScreen(tx + 0.5, ty + 0.5, 14, gridCols, gridRows);
+    const tip = tileToScreen(tx + 0.5, ty + 0.5, 26, gridCols, gridRows);
 
     return (
       <g key={key} id={`tree-${key}`} style={{ pointerEvents: 'none' }}>
         <ellipse cx={base[0]} cy={base[1]} rx="7" ry="4" fill="rgba(15, 23, 42, 0.15)" />
         <line x1={base[0]} y1={base[1]} x2={mid[0]} y2={mid[1]} stroke="#78350F" strokeWidth="2.5" />
-        <polygon
-          points={`${base[0] - 8},${base[1] - 4} ${base[0] + 8},${base[1] - 4} ${mid[0]},${mid[1] - 8}`}
-          fill="#15803D"
-          stroke="#166534"
-          strokeWidth="0.5"
-        />
-        <polygon
-          points={`${mid[0] - 6},${mid[1] - 2} ${mid[0] + 6},${mid[1] - 2} ${tip[0]},${tip[1]}`}
-          fill="#22C55E"
-          stroke="#15803D"
-          strokeWidth="0.5"
-        />
+        <polygon points={`${base[0] - 8},${base[1] - 4} ${base[0] + 8},${base[1] - 4} ${mid[0]},${mid[1] - 8}`} fill="#15803D" stroke="#166534" strokeWidth="0.5" />
+        <polygon points={`${mid[0] - 6},${mid[1] - 2} ${mid[0] + 6},${mid[1] - 2} ${tip[0]},${tip[1]}`} fill="#22C55E" stroke="#15803D" strokeWidth="0.5" />
       </g>
     );
   };
@@ -1487,7 +1655,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   return (
     <div style={{ position: 'relative', width: '100%', height: '640px', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
       
-      {/* 1. Top Map Toolbar with FarmVille Mode Switcher & Market Shop Button */}
+      {/* 1. Top Map Toolbar with Multi-Farm Navigator & FarmVille Mode Switcher */}
       <div style={{
         position: 'absolute',
         top: '16px',
@@ -1499,7 +1667,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         zIndex: 20,
         pointerEvents: 'none'
       }}>
-        {/* Mode Toggle: View Digital Twin vs FarmVille Builder */}
+        {/* Left: Mode Toggle */}
         <div style={{
           display: 'flex',
           gap: '4px',
@@ -1559,7 +1727,74 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons: Sound, Shop, Save Layout */}
+        {/* Center: Multi-Farm Navigator Pill (Arrow Switcher directly on the Farm) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '30px',
+          padding: '4px 16px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+          border: '1px solid #CBD5E1',
+          pointerEvents: 'auto'
+        }}>
+          <button
+            onClick={handlePrevFarm}
+            title="Previous Farm Estate"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#0F172A',
+              padding: '4px'
+            }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+              <span style={{ fontSize: '12px', fontWeight: 900, color: '#0F172A' }}>
+                {currentFarm.name}
+              </span>
+              <span style={{
+                fontSize: '9px',
+                fontWeight: 800,
+                padding: '1px 5px',
+                borderRadius: '4px',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                color: '#10B981',
+                fontFamily: 'monospace'
+              }}>
+                FARM {currentFarmIdx + 1}/{FARMS_DATA.length}
+              </span>
+            </div>
+            <div style={{ fontSize: '10px', color: '#64748B' }}>
+              {currentFarm.location} · {gridCols}×{gridRows} Grid · {currentFarm.stats.crop}
+            </div>
+          </div>
+
+          <button
+            onClick={handleNextFarm}
+            title="Next Farm Estate"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#0F172A',
+              padding: '4px'
+            }}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {/* Right: Farm Land Resizer, Sound, Shop, Save Layout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
           {saveToast && (
             <div style={{
@@ -1577,6 +1812,31 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
               <CheckCircle2 size={14} />
               {toastMessage}
             </div>
+          )}
+
+          {/* Farm Land Grid Resizer (FarmVille Style Land Expansion) */}
+          {activeTab === 'build' && (
+            <button
+              onClick={handleCycleGridSize}
+              title="Expand / cycle farm grid size"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 12px',
+                backgroundColor: '#FFFFFF',
+                color: '#0F172A',
+                border: '1px solid #CBD5E1',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+              }}
+            >
+              <Maximize2 size={13} color="#10B981" />
+              <span>Grid: {gridCols}×{gridRows}</span>
+            </button>
           )}
 
           {/* Sound Toggle */}
@@ -1655,7 +1915,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       {activeTab === 'build' && (activePlacingItem || movingStructureId) && (
         <div style={{
           position: 'absolute',
-          top: '64px',
+          top: '68px',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 25,
@@ -1728,7 +1988,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         </div>
       )}
 
-      {/* 3. FarmVille Market Shop Drawer (Slide-up modal with categorized farm buildings & silos) */}
+      {/* 3. FarmVille Market Shop Drawer */}
       {isShopOpen && activeTab === 'build' && (
         <div style={{
           position: 'absolute',
@@ -1747,9 +2007,9 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShoppingBag size={18} color="#10B981" />
-              <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
                 FarmVille Market · Commercial Farm Builder Catalog
-              </span>
+              </h3>
             </div>
             <button
               onClick={() => setIsShopOpen(false)}
@@ -1759,29 +2019,25 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             </button>
           </div>
 
-          {/* Category Tabs */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px', overflowX: 'auto' }}>
             {[
-              { id: 'greenhouses', label: '🏡 Greenhouses', count: 3 },
-              { id: 'silos', label: '🛢️ Silos & Storage', count: 2 },
-              { id: 'hydro', label: '🌱 Hydro & Gutters', count: 1 },
-              { id: 'controllers', label: '📟 Autogrow Controllers', count: 1 },
-              { id: 'infra', label: '🛣️ Roads & Pavers', count: 1 }
+              { id: 'greenhouses', label: '🏡 Greenhouses' },
+              { id: 'silos', label: '🛢️ Silos & Storage' },
+              { id: 'hydro', label: '🌱 Hydro & Gutters' },
+              { id: 'controllers', label: '📟 Autogrow Controllers' },
+              { id: 'infra', label: '🛣️ Roads & Pavers' }
             ].map(cat => (
               <button
                 key={cat.id}
-                onClick={() => {
-                  setActiveShopCategory(cat.id as any);
-                  playSfx('select');
-                }}
+                onClick={() => setActiveShopCategory(cat.id as any)}
                 style={{
                   padding: '6px 14px',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   border: 'none',
                   backgroundColor: activeShopCategory === cat.id ? '#0F172A' : '#F1F5F9',
                   color: activeShopCategory === cat.id ? '#FFFFFF' : '#475569',
                   fontSize: '12px',
-                  fontWeight: activeShopCategory === cat.id ? 800 : 600,
+                  fontWeight: 700,
                   cursor: 'pointer'
                 }}
               >
@@ -1790,48 +2046,35 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             ))}
           </div>
 
-          {/* Items Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', maxHeight: '240px', overflowY: 'auto' }}>
-            {catalog.filter(item => item.category === activeShopCategory).map(item => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '14px', maxHeight: '280px', overflowY: 'auto' }}>
+            {catalog.filter(item => item.category === activeShopCategory).map((item, idx) => (
               <div
-                key={item.name}
+                key={idx}
                 onClick={() => handleSelectShopItem(item)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px',
                   padding: '12px',
                   borderRadius: '10px',
-                  backgroundColor: '#F8FAFC',
                   border: '1px solid #E2E8F0',
+                  backgroundColor: '#F8FAFC',
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'flex-start'
                 }}
               >
-                <div style={{
-                  fontSize: '24px',
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '8px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  {item.icon}
-                </div>
+                <div style={{ fontSize: '26px' }}>{item.icon}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>{item.name}</span>
-                    <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'monospace', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '1px 5px', borderRadius: '4px' }}>
                       {item.wTiles}x{item.hTiles}
                     </span>
                   </div>
                   <p style={{ margin: '4px 0', fontSize: '11px', color: '#64748B', lineHeight: '1.3' }}>
                     {item.desc}
                   </p>
-                  <div style={{ fontSize: '10px', color: '#0284C7', fontWeight: 700 }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#2563EB', marginTop: '4px' }}>
                     {item.capacity}
                   </div>
                 </div>
@@ -1858,11 +2101,11 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
           <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
-            Zones · Farm Complex 1
+            Zones · {currentFarm.name.split(' ')[0]}
           </span>
         </div>
         <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '12px' }}>
-          {structures.length} active · 1 needs attention
+          {structures.length} active · {currentFarm.stats.status}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2006,7 +2249,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         </div>
       </div>
 
-      {/* 6. FarmVille Action Toolbar for Selected Structure (Move, Rotate, Remove, Inspect) */}
+      {/* 6. FarmVille Action Toolbar for Selected Structure (Move, Rotate, Resizing, Remove, Inspect) */}
       {selectedStructure && !isShopOpen && (
         <div style={{
           position: 'absolute',
@@ -2016,12 +2259,13 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           backgroundColor: '#FFFFFF',
           borderRadius: '14px',
           border: '1px solid #CBD5E1',
-          padding: '12px 20px',
+          padding: '10px 18px',
           boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
           zIndex: 20,
           display: 'flex',
           alignItems: 'center',
-          gap: '20px'
+          gap: '16px',
+          flexWrap: 'wrap'
         }}>
           {/* Structure Name & Hardware Badge */}
           <div>
@@ -2042,36 +2286,91 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                 {selectedStructure.controller.model}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '4px', fontSize: '11px', color: '#64748B' }}>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '2px', fontSize: '11px', color: '#64748B' }}>
               <span>Serial: {selectedStructure.controller.serial}</span>
               <span>Wi-Fi: {selectedStructure.controller.rssi} dBm</span>
               <span>EC: <strong style={{ color: '#10B981' }}>{selectedStructure.metrics.ec.toFixed(2)}</strong></span>
             </div>
           </div>
 
-          <div style={{ height: '32px', width: '1px', backgroundColor: '#E2E8F0' }} />
+          <div style={{ height: '28px', width: '1px', backgroundColor: '#E2E8F0' }} />
 
-          {/* FarmVille Object Manipulation Tools */}
+          {/* FarmVille Object Manipulation & Resizing Tools */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {activeTab === 'build' && (
               <>
+                {/* Resizing Width & Length (FarmVille Scalable Buildings) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#F8FAFC', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>Size:</span>
+                  
+                  {/* Width +/- */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>W:</span>
+                    <button
+                      onClick={() => handleResizeSelected(-1, 0)}
+                      disabled={selectedStructure.wTiles <= 1}
+                      title="Decrease width"
+                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.wTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
+                    >
+                      -
+                    </button>
+                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: '#0F172A', minWidth: '16px', textAlign: 'center' }}>
+                      {selectedStructure.wTiles}
+                    </span>
+                    <button
+                      onClick={() => handleResizeSelected(1, 0)}
+                      disabled={selectedStructure.tileX + selectedStructure.wTiles >= gridCols}
+                      title="Increase width"
+                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileX + selectedStructure.wTiles >= gridCols ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <span style={{ color: '#CBD5E1' }}>×</span>
+
+                  {/* Length +/- */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>L:</span>
+                    <button
+                      onClick={() => handleResizeSelected(0, -1)}
+                      disabled={selectedStructure.hTiles <= 1}
+                      title="Decrease length"
+                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.hTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
+                    >
+                      -
+                    </button>
+                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: '#0F172A', minWidth: '16px', textAlign: 'center' }}>
+                      {selectedStructure.hTiles}
+                    </span>
+                    <button
+                      onClick={() => handleResizeSelected(0, 1)}
+                      disabled={selectedStructure.tileY + selectedStructure.hTiles >= gridRows}
+                      title="Increase length"
+                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileY + selectedStructure.hTiles >= gridRows ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   onClick={() => handleStartMove(selectedStructure.id)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    padding: '6px 12px',
+                    padding: '5px 10px',
                     backgroundColor: '#F1F5F9',
                     border: '1px solid #CBD5E1',
                     borderRadius: '6px',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 700,
                     color: '#0F172A',
                     cursor: 'pointer'
                   }}
                 >
-                  <Move size={13} color="#2563EB" />
+                  <Move size={12} color="#2563EB" />
                   <span>Move</span>
                 </button>
 
@@ -2081,17 +2380,17 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    padding: '6px 12px',
+                    padding: '5px 10px',
                     backgroundColor: '#F1F5F9',
                     border: '1px solid #CBD5E1',
                     borderRadius: '6px',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 700,
                     color: '#0F172A',
                     cursor: 'pointer'
                   }}
                 >
-                  <RotateCw size={13} color="#10B981" />
+                  <RotateCw size={12} color="#10B981" />
                   <span>Rotate</span>
                 </button>
 
@@ -2101,17 +2400,17 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    padding: '6px 12px',
+                    padding: '5px 10px',
                     backgroundColor: '#FEE2E2',
                     border: '1px solid #FCA5A5',
                     borderRadius: '6px',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 700,
                     color: '#B91C1C',
                     cursor: 'pointer'
                   }}
                 >
-                  <Trash2 size={13} />
+                  <Trash2 size={12} />
                   <span>Remove</span>
                 </button>
               </>
@@ -2127,17 +2426,17 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 14px',
+                padding: '5px 12px',
                 backgroundColor: '#0F172A',
                 border: 'none',
                 borderRadius: '6px',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: 700,
                 color: '#FFFFFF',
                 cursor: 'pointer'
               }}
             >
-              <Sliders size={13} color="#10B981" />
+              <Sliders size={12} color="#10B981" />
               <span>Inspect Controller</span>
             </button>
           </div>
@@ -2173,13 +2472,13 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
         {renderGroundSlab()}
 
-        {/* Concrete Roadway */}
+        {/* Concrete Access Roadway */}
         <g id="access-road">
-          {Array.from({ length: GRID_COLS }).map((_, rx) => {
-            const pA = tileToScreen(rx, 4, 0.5);
-            const pB = tileToScreen(rx + 1, 4, 0.5);
-            const pC = tileToScreen(rx + 1, 5, 0.5);
-            const pD = tileToScreen(rx, 5, 0.5);
+          {Array.from({ length: gridCols }).map((_, rx) => {
+            const pA = tileToScreen(rx, 4, 0.5, gridCols, gridRows);
+            const pB = tileToScreen(rx + 1, 4, 0.5, gridCols, gridRows);
+            const pC = tileToScreen(rx + 1, 5, 0.5, gridCols, gridRows);
+            const pD = tileToScreen(rx, 5, 0.5, gridCols, gridRows);
             return (
               <polygon
                 key={`road-${rx}`}
@@ -2191,9 +2490,9 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             );
           })}
           {/* Dashed Center Road Divider */}
-          {Array.from({ length: GRID_COLS }).map((_, rx) => {
-            const pMidA = tileToScreen(rx + 0.2, 4.5, 0.6);
-            const pMidB = tileToScreen(rx + 0.8, 4.5, 0.6);
+          {Array.from({ length: gridCols }).map((_, rx) => {
+            const pMidA = tileToScreen(rx + 0.2, 4.5, 0.6, gridCols, gridRows);
+            const pMidB = tileToScreen(rx + 0.8, 4.5, 0.6, gridCols, gridRows);
             return (
               <line
                 key={`road-stripe-${rx}`}
@@ -2215,8 +2514,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
         {/* Ornamental Perimeter Trees (WarehouseOS Style) */}
         {renderTree('tree-1', 0.1, 0.1)}
-        {renderTree('tree-2', 11.2, 0.1)}
-        {renderTree('tree-3', 11.2, 9.1)}
+        {renderTree('tree-2', gridCols - 0.8, 0.1)}
+        {renderTree('tree-3', gridCols - 0.8, gridRows - 0.9)}
         {renderTree('tree-4', 0.1, 4.8)}
 
         {/* Render all Farm Structures */}
@@ -2235,7 +2534,9 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         const [hx, hy] = tileToScreen(
           hoveredStructure.tileX + hoveredStructure.wTiles / 2, 
           hoveredStructure.tileY, 
-          50
+          50,
+          gridCols,
+          gridRows
         );
         const isNearTop = hy < 170;
         const clampedX = Math.min(Math.max(150, hx), 920);
@@ -2307,7 +2608,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         );
       })()}
 
-      {/* 9. Autogrow Hardware Diagnostic Modal (User Guide & Controller Specs) */}
+      {/* 9. Autogrow Hardware Diagnostic Modal */}
       {isHardwareModalOpen && selectedStructure && (
         <div style={{
           position: 'fixed',
@@ -2331,7 +2632,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             overflow: 'hidden',
             boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
           }}>
-            {/* Modal Header */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -2354,7 +2654,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
               </button>
             </div>
 
-            {/* Modal Content */}
             <div style={{ padding: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
@@ -2386,7 +2685,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                 </div>
               </div>
 
-              {/* Dosing Test Action */}
               <div style={{ padding: '14px', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '16px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 800, color: '#065F46', marginBottom: '4px' }}>
                   Autogrow Direct-Drive Peristaltic Dosing (24VDC)
