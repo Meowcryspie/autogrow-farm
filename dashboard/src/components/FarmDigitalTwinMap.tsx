@@ -17,7 +17,9 @@ import {
   ChevronDown,
   Layers,
   ArrowLeft,
-  Plus
+  Plus,
+  AlertTriangle,
+  ArrowLeftRight
 } from 'lucide-react';
 
 export interface AttachedSensor {
@@ -823,6 +825,47 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   const [saveToast, setSaveToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Layout Synced to Edge Controllers!');
 
+  // Facilities sub-panel dock position: 'right' (default) or 'left' (toggleable)
+  const [facilitiesPosition, setFacilitiesPosition] = useState<'right' | 'left'>('right');
+
+  // Track unsaved changes in builder mode
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [isExitPromptOpen, setIsExitPromptOpen] = useState<boolean>(false);
+
+  // Save layout action
+  const handleSaveLayout = () => {
+    setToastMessage('Farm Floorplan Saved & Dispatched to Edge Hardware!');
+    setSaveToast(true);
+    setHasUnsavedChanges(false);
+    playSfx('place');
+    setTimeout(() => setSaveToast(false), 2200);
+  };
+
+  // Exit builder mode cleanly
+  const exitBuilderMode = () => {
+    setActiveTab('view');
+    setActivePlacingItem(null);
+    setMovingStructureId(null);
+    setBuilderContainerView('farm_layout');
+    setIsExitPromptOpen(false);
+    setHasUnsavedChanges(false);
+  };
+
+  // Toggle builder mode with unsaved changes guard
+  const handleToggleBuilderMode = () => {
+    if (activeTab === 'build') {
+      if (hasUnsavedChanges) {
+        setIsExitPromptOpen(true);
+      } else {
+        exitBuilderMode();
+      }
+    } else {
+      setActiveTab('build');
+      setBuilderContainerView('farm_layout');
+      setHasUnsavedChanges(false);
+    }
+  };
+
   // Hardware Diagnostic Modal for selected structure
   const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
 
@@ -856,6 +899,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     }
     setGridCols(nextCols);
     currentFarm.gridCols = nextCols;
+    setHasUnsavedChanges(true);
     setToastMessage(`Farmland Grid resized to ${nextCols}×${gridRows} Tiles`);
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2000);
@@ -875,6 +919,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     }
     setGridRows(nextRows);
     currentFarm.gridRows = nextRows;
+    setHasUnsavedChanges(true);
     setToastMessage(`Farmland Grid resized to ${gridCols}×${nextRows} Tiles`);
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2000);
@@ -909,6 +954,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         controller: updatedCtrls[0]
       };
     }));
+    setHasUnsavedChanges(true);
     setToastMessage(`Assigned new ${model}`);
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2000);
@@ -931,6 +977,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         controller: updatedCtrls[0]
       };
     }));
+    setHasUnsavedChanges(true);
     setToastMessage('Controller removed from building');
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 1800);
@@ -967,6 +1014,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       });
       return { ...s, controllers: updatedCtrls, controller: updatedCtrls[0] };
     }));
+    setHasUnsavedChanges(true);
     setToastMessage(`Attached ${spec.name} to controller`);
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 1800);
@@ -982,6 +1030,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       });
       return { ...s, controllers: updatedCtrls, controller: updatedCtrls[0] };
     }));
+    setHasUnsavedChanges(true);
     setToastMessage('Sensor detached from controller');
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 1600);
@@ -1091,6 +1140,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           : s
       )
     );
+    setHasUnsavedChanges(true);
     playSfx('rotate');
     setToastMessage(`Resized ${selectedStructure.name} to ${newW} × ${newH} Tiles`);
     setSaveToast(true);
@@ -1117,6 +1167,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       );
       setMovingStructureId(null);
       setSelectedId(moving.id);
+      setHasUnsavedChanges(true);
       playSfx('place');
       setToastMessage(`Moved ${moving.name} to Tile (${tx}, ${ty})`);
       setSaveToast(true);
@@ -1164,6 +1215,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
     setStructures([...structures, newStruct]);
     setSelectedId(newId);
+    setHasUnsavedChanges(true);
     playSfx('place');
     setToastMessage(`Placed ${newStruct.name}!`);
     setSaveToast(true);
@@ -1197,6 +1249,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           : s
       )
     );
+    setHasUnsavedChanges(true);
     playSfx('rotate');
   };
 
@@ -1207,6 +1260,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     const remaining = structures.filter(s => s.id !== selectedStructure.id);
     setStructures(remaining);
     setSelectedId(remaining[0].id);
+    setHasUnsavedChanges(true);
     setToastMessage(`Removed ${selectedStructure.name}`);
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2000);
@@ -1747,7 +1801,27 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '640px', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: facilitiesPosition === 'right' ? 'row' : 'row-reverse',
+      width: '100%',
+      height: '660px',
+      borderRadius: '16px',
+      overflow: 'hidden',
+      backgroundColor: '#F8FAFC',
+      border: '1px solid #E2E8F0',
+      position: 'relative',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
+    }}>
+
+      {/* Main Content Area (~80% map, filters, HUD and builder) */}
+      <div style={{
+        flex: 1,
+        minWidth: 0,
+        height: '100%',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
 
       {/* 1. Top Map Toolbar with Multi-Farm Navigator & FarmVille Mode Switcher */}
       <div style={{
@@ -2073,77 +2147,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
 
 
-      {/* 4. Floating Left Zones Card (WarehouseOS Layout) */}
-      <div style={{
-        position: 'absolute',
-        top: '68px',
-        left: '20px',
-        width: '240px',
-        maxHeight: '480px',
-        backgroundColor: '#FFFFFF',
-        borderRadius: '12px',
-        border: '1px solid #E2E8F0',
-        padding: '16px',
-        boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.06)',
-        zIndex: 15,
-        overflowY: 'auto'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
-            Facilities · {currentFarm.name.split(' ')[0]}
-          </span>
-        </div>
-        <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '12px' }}>
-          {structures.length} active · {currentFarm.stats.status}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {structures.map(struct => {
-            const isSel = selectedId === struct.id;
-            const isAttn = struct.controller.status === 'ATTENTION';
-
-            return (
-              <div
-                key={struct.id}
-                onClick={() => handleStructureClick(struct)}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  backgroundColor: isSel ? '#F1F5F9' : '#F8FAFC',
-                  border: `1px solid ${isSel ? '#10B981' : '#E2E8F0'}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{
-                      width: '7px',
-                      height: '7px',
-                      borderRadius: '50%',
-                      backgroundColor: isAttn ? '#F59E0B' : '#10B981'
-                    }} />
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
-                      {struct.name.split('·')[0].trim()}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: isAttn ? '#F59E0B' : '#10B981' }}>
-                      {struct.metrics.ec.toFixed(1)} mS
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '10px', color: '#64748B' }}>
-                  <span>{struct.crop.split('(')[0].trim()}</span>
-                  <span>{struct.controller.doseCountHour} DC/h</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 5. Floating Bottom-Right Controls: Save Layout & Builder Toggle */}
+      {/* 5. Floating Bottom-Right Controls: Save Layout (Builder Mode only) & Builder/Exit Toggle */}
       <div style={{
         position: 'absolute',
         bottom: '20px',
@@ -2151,7 +2155,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        zIndex: 25,
+        zIndex: 30,
         pointerEvents: 'auto'
       }}>
         {saveToast && (
@@ -2172,65 +2176,57 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           </div>
         )}
 
-        {/* Save Layout Button (Left of Builder) */}
-        <button
-          onClick={() => {
-            setToastMessage('Farm Floorplan Saved & Dispatched to Edge Hardware!');
-            setSaveToast(true);
-            setTimeout(() => setSaveToast(false), 2200);
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '9px 16px',
-            backgroundColor: '#FFFFFF',
-            color: '#0F172A',
-            borderRadius: '8px',
-            border: '1px solid #CBD5E1',
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Save size={15} color="#10B981" />
-          <span>Save Layout</span>
-        </button>
+        {/* Save Layout Button: Active & visible ONLY in Builder Mode */}
+        {activeTab === 'build' && (
+          <button
+            onClick={handleSaveLayout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 16px',
+              backgroundColor: hasUnsavedChanges ? '#10B981' : '#FFFFFF',
+              color: hasUnsavedChanges ? '#FFFFFF' : '#0F172A',
+              borderRadius: '8px',
+              border: hasUnsavedChanges ? 'none' : '1px solid #CBD5E1',
+              fontSize: '12px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: hasUnsavedChanges ? '0 4px 14px rgba(16, 185, 129, 0.35)' : '0 4px 12px rgba(0,0,0,0.06)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Save farm layout and dispatch to edge hardware"
+          >
+            <Save size={15} color={hasUnsavedChanges ? '#FFFFFF' : '#10B981'} />
+            <span>Save Layout</span>
+            {hasUnsavedChanges && (
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#FFFFFF' }} />
+            )}
+          </button>
+        )}
 
-        {/* Builder Toggle Button */}
+        {/* Builder / Exit Toggle Button */}
         <button
-          onClick={() => {
-            const nextMode = activeTab === 'build' ? 'view' : 'build';
-            setActiveTab(nextMode);
-            if (nextMode === 'view') {
-              setActivePlacingItem(null);
-              setMovingStructureId(null);
-              setBuilderContainerView('farm_layout');
-            } else {
-              setBuilderContainerView('farm_layout');
-            }
-          }}
+          onClick={handleToggleBuilderMode}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             padding: '9px 18px',
-            backgroundColor: activeTab === 'build' ? '#10B981' : '#0F172A',
+            backgroundColor: activeTab === 'build' ? '#EF4444' : '#0F172A',
             color: '#FFFFFF',
             borderRadius: '8px',
             border: 'none',
             fontSize: '13px',
             fontWeight: 800,
             cursor: 'pointer',
-            boxShadow: activeTab === 'build' ? '0 4px 16px rgba(16, 185, 129, 0.4)' : '0 4px 14px rgba(0,0,0,0.15)',
+            boxShadow: activeTab === 'build' ? '0 4px 14px rgba(239, 68, 68, 0.35)' : '0 4px 14px rgba(0,0,0,0.15)',
             transition: 'all 0.15s ease'
           }}
-          title={activeTab === 'build' ? 'Exit Builder (return to reading sensors)' : 'Enter Builder mode'}
+          title={activeTab === 'build' ? 'Exit Builder mode' : 'Enter Farm Layout Builder mode'}
         >
-          <Hammer size={16} />
-          <span>{activeTab === 'build' ? 'Exit Builder' : 'Builder'}</span>
+          {activeTab === 'build' ? <X size={16} /> : <Hammer size={16} />}
+          <span>{activeTab === 'build' ? 'Exit' : 'Builder'}</span>
         </button>
       </div>
 
@@ -2239,9 +2235,10 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         <div style={{
           position: 'absolute',
           bottom: '20px',
-          left: '270px',
-          maxWidth: 'calc(100% - 580px)',
-          minWidth: '400px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          maxWidth: 'calc(100% - 240px)',
+          minWidth: '420px',
           backgroundColor: '#FFFFFF',
           borderRadius: '14px',
           border: '1px solid #CBD5E1',
@@ -2275,7 +2272,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                     border: '1px solid #CBD5E1'
                   }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>Grid:</span>
-                    
+
                     {/* Width Stepper */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                       <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>W:</span>
@@ -2385,7 +2382,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                   </button>
                 </div>
               </div>
-              
+
               <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748B' }}>
                 💡 Click any structure on the map to resize, rotate, move, or configure controllers & sensors.
               </div>
@@ -2838,55 +2835,57 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         </div>
       )}
 
-      {/* 6B. Live Reading Sensor Mode Telemetry Bar for Selected Structure (activeTab === 'view') */}
+      {/* 6B. Live Reading Sensor Mode Telemetry Bar for Selected Structure (activeTab === 'view') - CENTERED */}
       {activeTab === 'view' && selectedStructure && (
         <div style={{
           position: 'absolute',
           bottom: '20px',
-          left: '270px',
-          maxWidth: 'calc(100% - 560px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          maxWidth: 'calc(100% - 240px)',
           backgroundColor: '#FFFFFF',
           borderRadius: '14px',
           border: '1px solid #CBD5E1',
-          padding: '8px 16px',
+          padding: '10px 20px',
           boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
           zIndex: 20,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          pointerEvents: 'auto'
+          gap: '6px',
+          pointerEvents: 'auto',
+          textAlign: 'center'
         }}>
-          {/* Structure Name & Hardware Badge */}
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Cpu size={14} color="#10B981" />
-              <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {selectedStructure.name}
-              </span>
-              <span style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                fontFamily: 'monospace',
-                padding: '1px 5px',
-                borderRadius: '4px',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                color: '#10B981',
-                flexShrink: 0
-              }}>
-                {selectedStructure.controller.model}
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '3px', fontSize: '11px', color: '#64748B', flexWrap: 'wrap' }}>
-              <span>Serial: {selectedStructure.controller.serial}</span>
-              <span>Wi-Fi: {selectedStructure.controller.rssi} dBm</span>
-              <span>EC: <strong style={{ color: '#10B981' }}>{selectedStructure.metrics.ec.toFixed(2)}</strong></span>
-              <span>pH: <strong style={{ color: '#2563EB' }}>{selectedStructure.metrics.ph.toFixed(2)}</strong></span>
-              <span>VPD: <strong>{selectedStructure.metrics.vpd.toFixed(2)} kPa</strong></span>
-            </div>
+          {/* Facility Name & Hardware Badge - CENTERED */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <Cpu size={14} color="#10B981" />
+            <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
+              {selectedStructure.name}
+            </span>
+            <span style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              fontFamily: 'monospace',
+              padding: '1px 6px',
+              borderRadius: '4px',
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              color: '#10B981',
+              flexShrink: 0
+            }}>
+              {selectedStructure.controller.model}
+            </span>
           </div>
 
-          {/* Hardware Diagnostic Inspect Modal Trigger (ONLY in view mode!) */}
+          {/* Real-time Telemetry Metrics - CENTERED */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '11px', color: '#64748B', flexWrap: 'wrap' }}>
+            <span>Serial: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.serial}</strong></span>
+            <span>Wi-Fi: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.rssi} dBm</strong></span>
+            <span>EC: <strong style={{ color: '#10B981', fontFamily: 'monospace' }}>{selectedStructure.metrics.ec.toFixed(2)} mS</strong></span>
+            <span>pH: <strong style={{ color: '#2563EB', fontFamily: 'monospace' }}>{selectedStructure.metrics.ph.toFixed(2)}</strong></span>
+            <span>VPD: <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>{selectedStructure.metrics.vpd.toFixed(2)} kPa</strong></span>
+          </div>
+
+          {/* Inspect Controller Button - CENTERED */}
           <button
             onClick={() => {
               setIsHardwareModalOpen(true);
@@ -2896,7 +2895,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 14px',
+              padding: '5px 16px',
               backgroundColor: '#0F172A',
               border: 'none',
               borderRadius: '6px',
@@ -2904,11 +2903,11 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
               fontWeight: 700,
               color: '#FFFFFF',
               cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
+              boxShadow: '0 2px 6px rgba(15,23,42,0.15)',
+              marginTop: '2px'
             }}
           >
-            <Sliders size={13} color="#10B981" />
+            <Sliders size={12} color="#10B981" />
             <span>Inspect Controller</span>
           </button>
         </div>
@@ -3078,6 +3077,221 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           </div>
         );
       })()}
+      </div> {/* End Main Content Area (~80%) */}
+
+      {/* 8. Docked Full-Height Facilities Submenu Panel (~20%, 100% height from top to bottom) */}
+      <div style={{
+        width: '260px',
+        minWidth: '260px',
+        height: '100%',
+        backgroundColor: '#FFFFFF',
+        display: 'flex',
+        flexDirection: 'column',
+        borderLeft: facilitiesPosition === 'right' ? '1px solid #E2E8F0' : 'none',
+        borderRight: facilitiesPosition === 'left' ? '1px solid #E2E8F0' : 'none',
+        zIndex: 10,
+        boxShadow: facilitiesPosition === 'right' ? '-4px 0 15px rgba(0,0,0,0.02)' : '4px 0 15px rgba(0,0,0,0.02)'
+      }}>
+        {/* Submenu Header with Dock Left/Right Switcher */}
+        <div style={{
+          padding: '16px 16px 12px 16px',
+          borderBottom: '1px solid #F1F5F9',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
+              Facilities · {currentFarm.name.split(' ')[0]}
+            </span>
+            <button
+              onClick={() => setFacilitiesPosition(p => p === 'right' ? 'left' : 'right')}
+              title={`Dock Facilities to ${facilitiesPosition === 'right' ? 'Left' : 'Right'}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 7px',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #CBD5E1',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 700,
+                color: '#475569',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <ArrowLeftRight size={11} />
+              <span>{facilitiesPosition === 'right' ? 'Dock Left' : 'Dock Right'}</span>
+            </button>
+          </div>
+          <div style={{ fontSize: '11px', color: '#64748B' }}>
+            {structures.length} active bays · {currentFarm.stats.status}
+          </div>
+        </div>
+
+        {/* Scrollable List of Farm Facilities */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          {structures.map(struct => {
+            const isSel = selectedId === struct.id;
+            const isAttn = struct.controller.status === 'ATTENTION';
+
+            return (
+              <div
+                key={struct.id}
+                onClick={() => handleStructureClick(struct)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: isSel ? '#F1F5F9' : '#FFFFFF',
+                  border: `1px solid ${isSel ? '#10B981' : '#E2E8F0'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isSel ? '0 2px 8px rgba(16,185,129,0.12)' : 'none'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                    <div style={{
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      backgroundColor: isAttn ? '#F59E0B' : '#10B981',
+                      flexShrink: 0
+                    }} />
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {struct.name.split('·')[0].trim()}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: isAttn ? '#F59E0B' : '#10B981' }}>
+                      {struct.metrics.ec.toFixed(1)} mS
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '10px', color: '#64748B' }}>
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
+                    {struct.crop.split('(')[0].trim()}
+                  </span>
+                  <span style={{ fontFamily: 'monospace' }}>{struct.controller.doseCountHour} DC/h</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 9. Unsaved Changes Prompt Confirmation Modal */}
+      {isExitPromptOpen && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 70,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '14px',
+            maxWidth: '440px',
+            width: '100%',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #CBD5E1',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              backgroundColor: '#FEF3C7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px auto'
+            }}>
+              <AlertTriangle size={24} color="#D97706" />
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: 900, color: '#0F172A', marginBottom: '8px' }}>
+              Unsaved Layout Changes
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5', marginBottom: '20px' }}>
+              You have modified the farm layout in Builder Mode. Would you like to save your changes before exiting to Live Sensor Monitoring?
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  handleSaveLayout();
+                  exitBuilderMode();
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#10B981',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Save size={13} />
+                <span>Save & Exit</span>
+              </button>
+              <button
+                onClick={() => {
+                  exitBuilderMode();
+                }}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: '#FEE2E2',
+                  color: '#DC2626',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Discard & Exit
+              </button>
+              <button
+                onClick={() => setIsExitPromptOpen(false)}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: '#F1F5F9',
+                  color: '#475569',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Keep Editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 9. Autogrow Hardware Diagnostic Modal */}
       {isHardwareModalOpen && selectedStructure && (
