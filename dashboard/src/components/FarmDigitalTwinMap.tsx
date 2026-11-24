@@ -1,24 +1,48 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  RotateCcw, 
-  Save, 
-  ZoomIn, 
-  ZoomOut, 
-  CheckCircle2, 
-  Hammer, 
-  Trash2, 
-  Cpu, 
-  Move, 
-  RotateCw, 
-  ShoppingBag, 
-  X, 
+import {
+  RotateCcw,
+  Save,
+  ZoomIn,
+  ZoomOut,
+  CheckCircle2,
+  Hammer,
+  Trash2,
+  Cpu,
+  Move,
+  RotateCw,
+  X,
   Sliders,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   Layers,
-  Maximize2
+  ArrowLeft,
+  Plus
 } from 'lucide-react';
+
+export interface AttachedSensor {
+  id: string;
+  name: string;
+  type: 'ec' | 'ph' | 'vpd' | 'vwc' | 'temp' | 'co2' | 'par';
+  value: number;
+  unit: string;
+  pin: string;
+  status: 'NORMAL' | 'ALERT' | 'CALIBRATING';
+}
+
+export interface AttachedController {
+  id?: string;
+  model: 'Autogrow EC Mini' | 'MultiGrow MGC-Pro 16-Ch' | 'IntelliDose Hub' | 'IntelliClimate Pro';
+  serial: string;
+  firmware: string;
+  wifiSSID: string;
+  rssi: number;
+  ipAddress: string;
+  status: 'ONLINE' | 'DOSING' | 'ATTENTION';
+  doseCountHour: number;
+  doseCountTotal: number;
+  sensors?: AttachedSensor[];
+}
 
 export interface TileStructure {
   id: string;
@@ -31,17 +55,8 @@ export interface TileStructure {
   rotation: 0 | 90 | 180 | 270;
   zone: string;
   crop: string;
-  controller: {
-    model: 'Autogrow EC Mini' | 'MultiGrow MGC-Pro 16-Ch' | 'IntelliDose Hub';
-    serial: string;
-    firmware: string;
-    wifiSSID: string;
-    rssi: number;
-    ipAddress: string;
-    status: 'ONLINE' | 'DOSING' | 'ATTENTION';
-    doseCountHour: number;
-    doseCountTotal: number;
-  };
+  controllers?: AttachedController[];
+  controller: AttachedController;
   metrics: {
     ec: number;
     targetEc: number;
@@ -56,6 +71,31 @@ export interface TileStructure {
     pumpB: 'IDLE' | 'DOSING';
     acid: 'IDLE' | 'DOSING';
   };
+}
+
+export function ensureControllers(struct: TileStructure): AttachedController[] {
+  if (struct.controllers && struct.controllers.length > 0) {
+    return struct.controllers;
+  }
+  const baseSensors: AttachedSensor[] = [
+    { id: `${struct.id}-s-ec`, name: 'EC Substrate Probe', type: 'ec', value: struct.metrics.ec, unit: 'mS/cm', pin: 'AN-01', status: 'NORMAL' },
+    { id: `${struct.id}-s-ph`, name: 'Glass pH Electrode', type: 'ph', value: struct.metrics.ph, unit: 'pH', pin: 'AN-02', status: 'NORMAL' },
+    { id: `${struct.id}-s-vpd`, name: 'Air Temp & VPD Sensor', type: 'vpd', value: struct.metrics.vpd, unit: 'kPa', pin: 'I2C-1', status: 'NORMAL' },
+    { id: `${struct.id}-s-vwc`, name: 'Substrate VWC% Moisture', type: 'vwc', value: struct.metrics.vwc, unit: '%', pin: 'AN-03', status: 'NORMAL' }
+  ];
+  return [{
+    id: struct.controller.serial || `ctrl-${struct.id}-1`,
+    model: struct.controller.model as any,
+    serial: struct.controller.serial,
+    firmware: struct.controller.firmware,
+    wifiSSID: struct.controller.wifiSSID,
+    rssi: struct.controller.rssi,
+    ipAddress: struct.controller.ipAddress,
+    status: struct.controller.status,
+    doseCountHour: struct.controller.doseCountHour,
+    doseCountTotal: struct.controller.doseCountTotal,
+    sensors: baseSensors
+  }];
 }
 
 export interface FarmLocationData {
@@ -83,7 +123,7 @@ export interface CatalogItem {
   hTiles: number;
   icon: string;
   desc: string;
-  defaultController: 'Autogrow EC Mini' | 'MultiGrow MGC-Pro 16-Ch' | 'IntelliDose Hub';
+  defaultController: AttachedController['model'];
   capacity: string;
 }
 
@@ -649,7 +689,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   }, [currentFarmIdx]);
 
   // SFX handler (Audio muted / disabled as requested)
-  const playSfx = (_type: 'place' | 'rotate' | 'delete' | 'error' | 'select') => {};
+  const playSfx = (_type: 'place' | 'rotate' | 'delete' | 'error' | 'select') => { };
 
   // Farm Navigation
   const handlePrevFarm = () => {
@@ -762,16 +802,18 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   const [structures, setStructures] = useState<TileStructure[]>(currentFarm.structures);
 
   // Mode and Tools
-  const [activeTab, setActiveTab] = useState<'view' | 'build'>('build');
-  const [selectedId, setSelectedId] = useState<string>(externalSelectedId || (structures[0]?.id || 'greenhouse-1'));
+  const [activeTab, setActiveTab] = useState<'view' | 'build'>('view');
+  const [selectedId, setSelectedId] = useState<string | null>(externalSelectedId || (structures[0]?.id || 'greenhouse-1'));
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  // FarmVille Builder Drawer & Placement State
-  const [isShopOpen, setIsShopOpen] = useState(false);
-  const [activeShopCategory, setActiveShopCategory] = useState<CatalogItem['category']>('greenhouses');
+  // Builder Container Context: 'farm_layout' | 'add_structure' | 'building_info'
+  const [builderContainerView, setBuilderContainerView] = useState<'farm_layout' | 'add_structure' | 'building_info'>('farm_layout');
+  const [isAddingControllerOpen, setIsAddingControllerOpen] = useState(false);
+
+  // FarmVille Builder Placement State
   const [activePlacingItem, setActivePlacingItem] = useState<CatalogItem | null>(null);
   const [placingDimensions, setPlacingDimensions] = useState<{ w: number; h: number }>({ w: 4, h: 3 });
-  
+
   // Moving existing structure mode
   const [movingStructureId, setMovingStructureId] = useState<string | null>(null);
 
@@ -798,6 +840,169 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const selectedStructure = structures.find(s => s.id === selectedId) || structures[0];
   const hoveredStructure = structures.find(s => s.id === hoveredId);
+
+  // Farmland Grid W x L Control Handlers
+  const handleGridColsChange = (delta: number) => {
+    const nextCols = gridCols + delta;
+    if (nextCols < 6 || nextCols > 30) return;
+    if (delta < 0) {
+      const wouldClip = structures.some(s => s.tileX + s.wTiles > nextCols);
+      if (wouldClip) {
+        setToastMessage(`Cannot shrink width: structures extend to column ${nextCols + 1}`);
+        setSaveToast(true);
+        setTimeout(() => setSaveToast(false), 2500);
+        return;
+      }
+    }
+    setGridCols(nextCols);
+    currentFarm.gridCols = nextCols;
+    setToastMessage(`Farmland Grid resized to ${nextCols}×${gridRows} Tiles`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 2000);
+  };
+
+  const handleGridRowsChange = (delta: number) => {
+    const nextRows = gridRows + delta;
+    if (nextRows < 6 || nextRows > 24) return;
+    if (delta < 0) {
+      const wouldClip = structures.some(s => s.tileY + s.hTiles > nextRows);
+      if (wouldClip) {
+        setToastMessage(`Cannot shrink length: structures extend to row ${nextRows + 1}`);
+        setSaveToast(true);
+        setTimeout(() => setSaveToast(false), 2500);
+        return;
+      }
+    }
+    setGridRows(nextRows);
+    currentFarm.gridRows = nextRows;
+    setToastMessage(`Farmland Grid resized to ${gridCols}×${nextRows} Tiles`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 2000);
+  };
+
+  // Controller & Sensor CRUD Handlers
+  const handleAddController = (structId: string, model: AttachedController['model']) => {
+    setStructures(prev => prev.map(s => {
+      if (s.id !== structId) return s;
+      const ctrls = ensureControllers(s);
+      const newCtrlId = `ctrl-${Date.now().toString().slice(-4)}`;
+      const newCtrl: AttachedController = {
+        id: newCtrlId,
+        model: model,
+        serial: `AG-${Math.floor(2000 + Math.random() * 7000)}-NZ`,
+        firmware: 'v3.1.0-Edge',
+        wifiSSID: 'Greenhouse_5G_Commercial',
+        rssi: -50 - Math.floor(Math.random() * 15),
+        ipAddress: `192.168.10.${50 + ctrls.length}`,
+        status: 'ONLINE',
+        doseCountHour: 12,
+        doseCountTotal: 340,
+        sensors: [
+          { id: `${newCtrlId}-s1`, name: 'EC Conductivity Sensor', type: 'ec', value: 2.30, unit: 'mS/cm', pin: 'AN-01', status: 'NORMAL' },
+          { id: `${newCtrlId}-s2`, name: 'pH Precision Electrode', type: 'ph', value: 5.80, unit: 'pH', pin: 'AN-02', status: 'NORMAL' }
+        ]
+      };
+      const updatedCtrls = [...ctrls, newCtrl];
+      return {
+        ...s,
+        controllers: updatedCtrls,
+        controller: updatedCtrls[0]
+      };
+    }));
+    setToastMessage(`Assigned new ${model}`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 2000);
+  };
+
+  const handleRemoveController = (structId: string, ctrlId: string) => {
+    setStructures(prev => prev.map(s => {
+      if (s.id !== structId) return s;
+      const ctrls = ensureControllers(s);
+      if (ctrls.length <= 1) {
+        setToastMessage('A building must retain at least one controller');
+        setSaveToast(true);
+        setTimeout(() => setSaveToast(false), 2200);
+        return s;
+      }
+      const updatedCtrls = ctrls.filter(c => c.id !== ctrlId);
+      return {
+        ...s,
+        controllers: updatedCtrls,
+        controller: updatedCtrls[0]
+      };
+    }));
+    setToastMessage('Controller removed from building');
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 1800);
+  };
+
+  const handleAddSensor = (structId: string, ctrlId: string, sensorType: AttachedSensor['type']) => {
+    const sensorSpecs: Record<AttachedSensor['type'], { name: string; unit: string; defaultVal: number; pin: string }> = {
+      ec: { name: 'EC Substrate Probe', unit: 'mS/cm', defaultVal: 2.35, pin: 'AN-01' },
+      ph: { name: 'Glass pH Electrode', unit: 'pH', defaultVal: 5.85, pin: 'AN-02' },
+      vpd: { name: 'Leaf VPD Hygrometer', unit: 'kPa', defaultVal: 1.15, pin: 'I2C-1' },
+      vwc: { name: 'Substrate VWC% Moisture', unit: '%', defaultVal: 65.0, pin: 'AN-03' },
+      temp: { name: 'Water Temperature Probe', unit: '°C', defaultVal: 21.0, pin: 'AN-04' },
+      co2: { name: 'Ambient CO2 NDIR Sensor', unit: 'ppm', defaultVal: 850, pin: 'UART-1' },
+      par: { name: 'PAR Quantum Light Meter', unit: 'µmol/m²/s', defaultVal: 480, pin: 'SDI-12' }
+    };
+
+    const spec = sensorSpecs[sensorType] || sensorSpecs.ec;
+    setStructures(prev => prev.map(s => {
+      if (s.id !== structId) return s;
+      const ctrls = ensureControllers(s);
+      const updatedCtrls = ctrls.map(c => {
+        if (c.id !== ctrlId) return c;
+        const currSensors = c.sensors || [];
+        const newSensor: AttachedSensor = {
+          id: `sens-${Date.now().toString().slice(-4)}`,
+          name: spec.name,
+          type: sensorType,
+          value: spec.defaultVal,
+          unit: spec.unit,
+          pin: `${spec.pin}-${currSensors.length + 1}`,
+          status: 'NORMAL'
+        };
+        return { ...c, sensors: [...currSensors, newSensor] };
+      });
+      return { ...s, controllers: updatedCtrls, controller: updatedCtrls[0] };
+    }));
+    setToastMessage(`Attached ${spec.name} to controller`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 1800);
+  };
+
+  const handleRemoveSensor = (structId: string, ctrlId: string, sensorId: string) => {
+    setStructures(prev => prev.map(s => {
+      if (s.id !== structId) return s;
+      const ctrls = ensureControllers(s);
+      const updatedCtrls = ctrls.map(c => {
+        if (c.id !== ctrlId) return c;
+        return { ...c, sensors: (c.sensors || []).filter(sens => sens.id !== sensorId) };
+      });
+      return { ...s, controllers: updatedCtrls, controller: updatedCtrls[0] };
+    }));
+    setToastMessage('Sensor detached from controller');
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 1600);
+  };
+
+  const handlePickCatalogItem = (item: CatalogItem) => {
+    setActivePlacingItem(item);
+    setPlacingDimensions({ w: item.wTiles, h: item.hTiles });
+    setBuilderContainerView('farm_layout');
+    setToastMessage(`Selected ${item.name} (${item.wTiles}×${item.hTiles}). Click any empty tile to drop.`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 3000);
+  };
+
+  const handleStructureClick = (s: TileStructure) => {
+    setSelectedId(s.id);
+    onSelectStructure?.(s);
+    if (activeTab === 'build') {
+      setBuilderContainerView('building_info');
+    }
+  };
 
   // Keyboard shortcut listener: 'R' to rotate footprint, 'Escape' to cancel
   useEffect(() => {
@@ -864,10 +1069,10 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     if (newW < 1 || newH < 1) return;
 
     const isValid = checkTileCollision(
-      selectedStructure.tileX, 
-      selectedStructure.tileY, 
-      newW, 
-      newH, 
+      selectedStructure.tileX,
+      selectedStructure.tileY,
+      newW,
+      newH,
       selectedStructure.id
     );
 
@@ -892,28 +1097,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     setTimeout(() => setSaveToast(false), 1800);
   };
 
-  // Farm Land Expansion / Grid Resizing (FarmVille Scalable Land)
-  const handleCycleGridSize = () => {
-    let nextCols = 12;
-    let nextRows = 10;
-    if (gridCols === 12) {
-      nextCols = 16;
-      nextRows = 12;
-    } else if (gridCols === 16) {
-      nextCols = 20;
-      nextRows = 14;
-    } else {
-      nextCols = 12;
-      nextRows = 10;
-    }
-
-    setGridCols(nextCols);
-    setGridRows(nextRows);
-    playSfx('place');
-    setToastMessage(`Expanded Farm Land to ${nextCols} × ${nextRows} Tiles!`);
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 2000);
-  };
 
   // Place or Move Object on Click
   const handleTileClick = (tx: number, ty: number) => {
@@ -1006,11 +1189,11 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       prev.map(s =>
         s.id === selectedStructure.id
           ? {
-              ...s,
-              wTiles: newW,
-              hTiles: newH,
-              rotation: ((s.rotation + 90) % 360) as 0 | 90 | 180 | 270
-            }
+            ...s,
+            wTiles: newW,
+            hTiles: newH,
+            rotation: ((s.rotation + 90) % 360) as 0 | 90 | 180 | 270
+          }
           : s
       )
     );
@@ -1039,14 +1222,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     }
   };
 
-  // Select Item from Shop
-  const handleSelectShopItem = (item: CatalogItem) => {
-    playSfx('select');
-    setActivePlacingItem(item);
-    setPlacingDimensions({ w: item.wTiles, h: item.hTiles });
-    setMovingStructureId(null);
-    setIsShopOpen(false);
-  };
 
   // Render 3D Ground Base Slab & 1x1 Isometric Tile Grid
   const renderGroundSlab = () => {
@@ -1060,7 +1235,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     const pBot2 = tileToScreen(gridCols, gridRows, -SLAB_DEPTH, gridCols, gridRows);
     const pBot3 = tileToScreen(0, gridRows, -SLAB_DEPTH, gridCols, gridRows);
 
-    const activeW = movingStructureId 
+    const activeW = movingStructureId
       ? structures.find(s => s.id === movingStructureId)?.wTiles || 1
       : activePlacingItem ? placingDimensions.w : 0;
     const activeH = movingStructureId
@@ -1121,7 +1296,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                 key={`tile-${cx}-${cy}`}
                 points={`${ptStr(t0)} ${ptStr(t1)} ${ptStr(t2)} ${ptStr(t3)}`}
                 fill={
-                  inFootprint 
+                  inFootprint
                     ? (isHoverValid ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.4)')
                     : 'none'
                 }
@@ -1175,11 +1350,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       <g
         key={s.id}
         opacity={isBeingMoved ? 0.35 : 1}
-        onClick={() => {
-          setSelectedId(s.id);
-          playSfx('select');
-          onSelectStructure?.(s);
-        }}
+        onClick={() => handleStructureClick(s)}
         onMouseEnter={() => setHoveredId(s.id)}
         onMouseLeave={() => setHoveredId(null)}
         style={{ cursor: 'pointer' }}
@@ -1263,11 +1434,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       <g
         key={s.id}
         opacity={isBeingMoved ? 0.35 : 1}
-        onClick={() => {
-          setSelectedId(s.id);
-          playSfx('select');
-          onSelectStructure?.(s);
-        }}
+        onClick={() => handleStructureClick(s)}
         onMouseEnter={() => setHoveredId(s.id)}
         onMouseLeave={() => setHoveredId(null)}
         style={{ cursor: 'pointer' }}
@@ -1361,11 +1528,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       <g
         key={s.id}
         opacity={isBeingMoved ? 0.35 : 1}
-        onClick={() => {
-          setSelectedId(s.id);
-          playSfx('select');
-          onSelectStructure?.(s);
-        }}
+        onClick={() => handleStructureClick(s)}
         onMouseEnter={() => setHoveredId(s.id)}
         onMouseLeave={() => setHoveredId(null)}
         style={{ cursor: 'pointer' }}
@@ -1441,11 +1604,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       <g
         key={s.id}
         opacity={isBeingMoved ? 0.35 : 1}
-        onClick={() => {
-          setSelectedId(s.id);
-          playSfx('select');
-          onSelectStructure?.(s);
-        }}
+        onClick={() => handleStructureClick(s)}
         onMouseEnter={() => setHoveredId(s.id)}
         onMouseLeave={() => setHoveredId(null)}
         style={{ cursor: 'pointer' }}
@@ -1514,22 +1673,18 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       <g
         key={s.id}
         opacity={isBeingMoved ? 0.35 : 1}
-        onClick={() => {
-          setSelectedId(s.id);
-          playSfx('select');
-          onSelectStructure?.(s);
-        }}
+        onClick={() => handleStructureClick(s)}
         onMouseEnter={() => setHoveredId(s.id)}
         onMouseLeave={() => setHoveredId(null)}
         style={{ cursor: 'pointer' }}
       >
-        <circle 
-          cx={center[0]} 
-          cy={center[1]} 
-          r="14" 
-          fill={isSelected ? 'rgba(16, 185, 129, 0.3)' : (isHovered ? 'rgba(241, 245, 249, 1)' : 'rgba(241, 245, 249, 0.8)')} 
-          stroke="#10B981" 
-          strokeWidth={isSelected ? 2.5 : (isHovered ? 2 : 1.5)} 
+        <circle
+          cx={center[0]}
+          cy={center[1]}
+          r="14"
+          fill={isSelected ? 'rgba(16, 185, 129, 0.3)' : (isHovered ? 'rgba(241, 245, 249, 1)' : 'rgba(241, 245, 249, 0.8)')}
+          stroke="#10B981"
+          strokeWidth={isSelected ? 2.5 : (isHovered ? 2 : 1.5)}
         />
         <line x1={center[0]} y1={center[1]} x2={center[0]} y2={center[1] - 22} stroke="#475569" strokeWidth="2.5" />
         <g transform={`translate(${center[0] - 10}, ${center[1] - 38})`}>
@@ -1593,7 +1748,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '640px', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-      
+
       {/* 1. Top Map Toolbar with Multi-Farm Navigator & FarmVille Mode Switcher */}
       <div style={{
         position: 'absolute',
@@ -1700,57 +1855,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           </button>
         </div>
 
-        {/* Right: Grid Resizer & Add Structures (in build mode) & Map Layers Dropdown */}
+        {/* Right: Map Layers Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
-          {/* Builder Mode Controls */}
-          {activeTab === 'build' && (
-            <>
-              <button
-                onClick={handleCycleGridSize}
-                title="Expand / cycle farm grid size"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '7px 12px',
-                  backgroundColor: '#FFFFFF',
-                  color: '#0F172A',
-                  border: '1px solid #CBD5E1',
-                  borderRadius: '8px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
-                }}
-              >
-                <Maximize2 size={13} color="#10B981" />
-                <span>Grid: {gridCols}×{gridRows}</span>
-              </button>
-
-              <button
-                onClick={() => setIsShopOpen(!isShopOpen)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '7px 14px',
-                  backgroundColor: isShopOpen ? '#0F172A' : '#10B981',
-                  color: '#FFFFFF',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <ShoppingBag size={14} />
-                <span>{isShopOpen ? 'Close Catalog' : 'Add Structures'}</span>
-              </button>
-            </>
-          )}
-
           {/* Map Layers Dropdown Button */}
           <div style={{ position: 'relative' }}>
             <button
@@ -1910,14 +2016,14 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             {movingStructureId ? '✋ Moving:' : activePlacingItem?.icon}
           </span>
           <span style={{ fontSize: '12px', fontWeight: 800 }}>
-            {movingStructureId 
-              ? structures.find(s => s.id === movingStructureId)?.name 
+            {movingStructureId
+              ? structures.find(s => s.id === movingStructureId)?.name
               : activePlacingItem?.name}
           </span>
           <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '2px 8px', borderRadius: '4px' }}>
             Footprint: {placingDimensions.w} × {placingDimensions.h} Tiles
           </span>
-          
+
           <button
             onClick={() => {
               setPlacingDimensions(prev => ({ w: prev.h, h: prev.w }));
@@ -1965,101 +2071,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         </div>
       )}
 
-      {/* 3. FarmVille Market Shop Drawer */}
-      {isShopOpen && activeTab === 'build' && (
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '92%',
-          maxWidth: '860px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '16px',
-          border: '1px solid #CBD5E1',
-          padding: '20px',
-          boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
-          zIndex: 35
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShoppingBag size={18} color="#10B981" />
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
-                FarmVille Market · Commercial Farm Builder Catalog
-              </h3>
-            </div>
-            <button
-              onClick={() => setIsShopOpen(false)}
-              style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer' }}
-            >
-              <X size={18} />
-            </button>
-          </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px', overflowX: 'auto' }}>
-            {[
-              { id: 'greenhouses', label: '🏡 Greenhouses' },
-              { id: 'silos', label: '🛢️ Silos & Storage' },
-              { id: 'hydro', label: '🌱 Hydro & Gutters' },
-              { id: 'controllers', label: '📟 Autogrow Controllers' },
-              { id: 'infra', label: '🛣️ Roads & Pavers' }
-            ].map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveShopCategory(cat.id as any)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: activeShopCategory === cat.id ? '#0F172A' : '#F1F5F9',
-                  color: activeShopCategory === cat.id ? '#FFFFFF' : '#475569',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '14px', maxHeight: '280px', overflowY: 'auto' }}>
-            {catalog.filter(item => item.category === activeShopCategory).map((item, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleSelectShopItem(item)}
-                style={{
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid #E2E8F0',
-                  backgroundColor: '#F8FAFC',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  display: 'flex',
-                  gap: '12px',
-                  alignItems: 'flex-start'
-                }}
-              >
-                <div style={{ fontSize: '26px' }}>{item.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>{item.name}</span>
-                    <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'monospace', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '1px 5px', borderRadius: '4px' }}>
-                      {item.wTiles}x{item.hTiles}
-                    </span>
-                  </div>
-                  <p style={{ margin: '4px 0', fontSize: '11px', color: '#64748B', lineHeight: '1.3' }}>
-                    {item.desc}
-                  </p>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#2563EB', marginTop: '4px' }}>
-                    {item.capacity}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 4. Floating Left Zones Card (WarehouseOS Layout) */}
       <div style={{
@@ -2093,11 +2105,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             return (
               <div
                 key={struct.id}
-                onClick={() => {
-                  setSelectedId(struct.id);
-                  playSfx('select');
-                  onSelectStructure?.(struct);
-                }}
+                onClick={() => handleStructureClick(struct)}
                 style={{
                   padding: '10px 12px',
                   borderRadius: '8px',
@@ -2199,7 +2207,9 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             if (nextMode === 'view') {
               setActivePlacingItem(null);
               setMovingStructureId(null);
-              setIsShopOpen(false);
+              setBuilderContainerView('farm_layout');
+            } else {
+              setBuilderContainerView('farm_layout');
             }
           }}
           style={{
@@ -2224,68 +2234,301 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         </button>
       </div>
 
-      {/* 6. FarmVille Action Toolbar for Selected Structure (Move, Rotate, Resizing, Remove, Inspect) */}
-      {selectedStructure && !isShopOpen && (
+      {/* 6A. Builder Mode Contextual Bottom Container (activeTab === 'build') */}
+      {activeTab === 'build' && (
         <div style={{
           position: 'absolute',
           bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: '270px',
+          maxWidth: 'calc(100% - 580px)',
+          minWidth: '400px',
           backgroundColor: '#FFFFFF',
           borderRadius: '14px',
           border: '1px solid #CBD5E1',
-          padding: '10px 18px',
+          padding: '12px 18px',
           boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
-          zIndex: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap'
+          zIndex: 25,
+          pointerEvents: 'auto'
         }}>
-          {/* Structure Name & Hardware Badge */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Cpu size={14} color="#10B981" />
-              <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                {selectedStructure.name}
-              </span>
-              <span style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                fontFamily: 'monospace',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                color: '#10B981'
+          {/* VIEW 1: FARM LAYOUT */}
+          {builderContainerView === 'farm_layout' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                    Farm Layout
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#64748B' }}>
+                    {structures.length} structures placed
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* Farmland Grid Width x Length steppers */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: '#F8FAFC',
+                    padding: '3px 8px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1'
+                  }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>Grid:</span>
+                    
+                    {/* Width Stepper */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>W:</span>
+                      <button
+                        onClick={() => handleGridColsChange(-1)}
+                        style={{
+                          padding: '1px 6px',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          color: '#0F172A'
+                        }}
+                        title="Decrease Farmland Grid Width"
+                      >
+                        -
+                      </button>
+                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', minWidth: '18px', textAlign: 'center', color: '#0F172A' }}>
+                        {gridCols}
+                      </span>
+                      <button
+                        onClick={() => handleGridColsChange(1)}
+                        style={{
+                          padding: '1px 6px',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          color: '#10B981'
+                        }}
+                        title="Increase Farmland Grid Width"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <span style={{ color: '#94A3B8', fontWeight: 700 }}>×</span>
+
+                    {/* Length Stepper */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>L:</span>
+                      <button
+                        onClick={() => handleGridRowsChange(-1)}
+                        style={{
+                          padding: '1px 6px',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          color: '#0F172A'
+                        }}
+                        title="Decrease Farmland Grid Length"
+                      >
+                        -
+                      </button>
+                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', minWidth: '18px', textAlign: 'center', color: '#0F172A' }}>
+                        {gridRows}
+                      </span>
+                      <button
+                        onClick={() => handleGridRowsChange(1)}
+                        style={{
+                          padding: '1px 6px',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          color: '#10B981'
+                        }}
+                        title="Increase Farmland Grid Length"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add Structure Button */}
+                  <button
+                    onClick={() => {
+                      setBuilderContainerView('add_structure');
+                      playSfx('select');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      backgroundColor: '#10B981',
+                      color: '#FFFFFF',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    <Plus size={14} />
+                    <span>Add Structure</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748B' }}>
+                💡 Click any structure on the map to resize, rotate, move, or configure controllers & sensors.
+              </div>
+            </div>
+          )}
+
+          {/* VIEW 2: ADD STRUCTURE (CATALOG) */}
+          {builderContainerView === 'add_structure' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A' }}>
+                    Add Structure
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#64748B' }}>
+                    Select an item to place on the farmland grid
+                  </span>
+                </div>
+
+                {/* Back button to Farm Layout */}
+                <button
+                  onClick={() => setBuilderContainerView('farm_layout')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    backgroundColor: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: '#0F172A',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ArrowLeft size={13} />
+                  <span>Back to Farm Layout</span>
+                </button>
+              </div>
+
+              {/* Structure Catalog Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gap: '8px',
+                maxHeight: '220px',
+                overflowY: 'auto'
               }}>
-                {selectedStructure.controller.model}
-              </span>
+                {catalog.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handlePickCatalogItem(item)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      backgroundColor: '#F8FAFC',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'flex-start'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = '#10B981';
+                      e.currentTarget.style.backgroundColor = '#FFFFFF';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = '#E2E8F0';
+                      e.currentTarget.style.backgroundColor = '#F8FAFC';
+                    }}
+                  >
+                    <div style={{ fontSize: '20px' }}>{item.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.name}
+                        </span>
+                        <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'monospace', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '1px 4px', borderRadius: '3px', flexShrink: 0, marginLeft: '4px' }}>
+                          {item.wTiles}×{item.hTiles}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '9px', color: '#64748B', marginTop: '2px', lineHeight: '1.2', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {item.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '2px', fontSize: '11px', color: '#64748B' }}>
-              <span>Serial: {selectedStructure.controller.serial}</span>
-              <span>Wi-Fi: {selectedStructure.controller.rssi} dBm</span>
-              <span>EC: <strong style={{ color: '#10B981' }}>{selectedStructure.metrics.ec.toFixed(2)}</strong></span>
-            </div>
-          </div>
+          )}
 
-          <div style={{ height: '28px', width: '1px', backgroundColor: '#E2E8F0' }} />
+          {/* VIEW 3: BUILDING INFO & CONFIG (CRUD CONTROLLERS & SENSORS) */}
+          {builderContainerView === 'building_info' && selectedStructure && (
+            <div>
+              {/* Top Header: Structure Name, Coordinates, Back button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Cpu size={14} color="#10B981" />
+                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A' }}>
+                    {selectedStructure.name}
+                  </span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B', fontFamily: 'monospace', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: '4px' }}>
+                    Pos: ({selectedStructure.tileX}, {selectedStructure.tileY})
+                  </span>
+                </div>
 
-          {/* FarmVille Object Manipulation & Resizing Tools */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {activeTab === 'build' && (
-              <>
-                {/* Resizing Width & Length (FarmVille Scalable Buildings) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#F8FAFC', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
-                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>Size:</span>
-                  
-                  {/* Width +/- */}
+                {/* Back button to Farm Layout */}
+                <button
+                  onClick={() => setBuilderContainerView('farm_layout')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '3px 8px',
+                    backgroundColor: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: '#0F172A',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ArrowLeft size={12} />
+                  <span>Back to Farm Layout</span>
+                </button>
+              </div>
+
+              {/* Building Geometry Controls: Size W x L, Move, Rotate, Remove (NO Inspect Controller here!) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '10px', backgroundColor: '#F8FAFC', padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                {/* Size W x L steppers */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: '#475569', fontWeight: 800 }}>Size:</span>
+
+                  {/* Width */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                     <span style={{ fontSize: '10px', color: '#94A3B8' }}>W:</span>
                     <button
                       onClick={() => handleResizeSelected(-1, 0)}
                       disabled={selectedStructure.wTiles <= 1}
-                      title="Decrease width"
-                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.wTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
+                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.wTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
                     >
                       -
                     </button>
@@ -2295,8 +2538,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                     <button
                       onClick={() => handleResizeSelected(1, 0)}
                       disabled={selectedStructure.tileX + selectedStructure.wTiles >= gridCols}
-                      title="Increase width"
-                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileX + selectedStructure.wTiles >= gridCols ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
+                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileX + selectedStructure.wTiles >= gridCols ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
                     >
                       +
                     </button>
@@ -2304,14 +2546,13 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
                   <span style={{ color: '#CBD5E1' }}>×</span>
 
-                  {/* Length +/- */}
+                  {/* Length */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                     <span style={{ fontSize: '10px', color: '#94A3B8' }}>L:</span>
                     <button
                       onClick={() => handleResizeSelected(0, -1)}
                       disabled={selectedStructure.hTiles <= 1}
-                      title="Decrease length"
-                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.hTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
+                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.hTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
                     >
                       -
                     </button>
@@ -2321,100 +2562,355 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                     <button
                       onClick={() => handleResizeSelected(0, 1)}
                       disabled={selectedStructure.tileY + selectedStructure.hTiles >= gridRows}
-                      title="Increase length"
-                      style={{ padding: '1px 5px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileY + selectedStructure.hTiles >= gridRows ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
+                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileY + selectedStructure.hTiles >= gridRows ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
                     >
                       +
                     </button>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleStartMove(selectedStructure.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '5px 10px',
-                    backgroundColor: '#F1F5F9',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#0F172A',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Move size={12} color="#2563EB" />
-                  <span>Move</span>
-                </button>
+                {/* Action buttons: Move, Rotate, Remove */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={() => handleStartMove(selectedStructure.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '5px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#0F172A',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Move size={11} color="#2563EB" />
+                    <span>Move</span>
+                  </button>
 
-                <button
-                  onClick={handleRotateSelected}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '5px 10px',
-                    backgroundColor: '#F1F5F9',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#0F172A',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <RotateCw size={12} color="#10B981" />
-                  <span>Rotate</span>
-                </button>
+                  <button
+                    onClick={handleRotateSelected}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '5px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#0F172A',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <RotateCw size={11} color="#10B981" />
+                    <span>Rotate</span>
+                  </button>
 
-                <button
-                  onClick={handleDeleteSelected}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '5px 10px',
-                    backgroundColor: '#FEE2E2',
-                    border: '1px solid #FCA5A5',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#B91C1C',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Trash2 size={12} />
-                  <span>Remove</span>
-                </button>
-              </>
-            )}
+                  <button
+                    onClick={() => {
+                      handleDeleteSelected();
+                      setBuilderContainerView('farm_layout');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      backgroundColor: '#FEE2E2',
+                      border: '1px solid #FCA5A5',
+                      borderRadius: '5px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#B91C1C',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Trash2 size={11} />
+                    <span>Remove</span>
+                  </button>
+                </div>
+              </div>
 
-            {/* Hardware Diagnostic Inspect Modal Trigger */}
-            <button
-              onClick={() => {
-                setIsHardwareModalOpen(true);
-                playSfx('select');
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '5px 12px',
-                backgroundColor: '#0F172A',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '11px',
+              {/* Controllers & Sensors CRUD Section */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A' }}>
+                      Assigned Controllers ({ensureControllers(selectedStructure).length})
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#64748B' }}>
+                      (Multi-controller architecture)
+                    </span>
+                  </div>
+
+                  {/* + Assign Controller Dropdown */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setIsAddingControllerOpen(!isAddingControllerOpen)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        backgroundColor: '#0F172A',
+                        color: '#FFFFFF',
+                        borderRadius: '5px',
+                        border: 'none',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Plus size={11} />
+                      <span>Assign Controller</span>
+                    </button>
+
+                    {isAddingControllerOpen && (
+                      <div style={{
+                        position: 'absolute',
+                        right: 0,
+                        bottom: '100%',
+                        marginBottom: '4px',
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: '8px',
+                        boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+                        border: '1px solid #CBD5E1',
+                        padding: '4px',
+                        zIndex: 30,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        width: '190px'
+                      }}>
+                        {[
+                          'MultiGrow MGC-Pro 16-Ch',
+                          'Autogrow EC Mini',
+                          'IntelliDose Hub',
+                          'IntelliClimate Pro'
+                        ].map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => {
+                              handleAddController(selectedStructure.id, m as any);
+                              setIsAddingControllerOpen(false);
+                            }}
+                            style={{
+                              padding: '5px 8px',
+                              backgroundColor: '#F8FAFC',
+                              border: '1px solid #E2E8F0',
+                              borderRadius: '4px',
+                              textAlign: 'left',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: '#0F172A',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            + {m}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* List of Controllers and their attached sensors */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                  {ensureControllers(selectedStructure).map((ctrl) => (
+                    <div
+                      key={ctrl.id}
+                      style={{
+                        padding: '6px 8px',
+                        backgroundColor: '#F8FAFC',
+                        borderRadius: '6px',
+                        border: '1px solid #E2E8F0'
+                      }}
+                    >
+                      {/* Controller Row */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A' }}>
+                            {ctrl.model}
+                          </span>
+                          <span style={{ fontSize: '9px', fontFamily: 'monospace', color: '#64748B' }}>
+                            [{ctrl.serial}]
+                          </span>
+                          <span style={{ fontSize: '9px', color: '#2563EB', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.1)', padding: '1px 4px', borderRadius: '3px' }}>
+                            {(ctrl.sensors || []).length} sensors
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {/* Add Sensor to this controller */}
+                          <div style={{ display: 'flex', gap: '2px' }}>
+                            {(['ec', 'ph', 'vpd', 'vwc', 'temp'] as AttachedSensor['type'][]).map(stype => (
+                              <button
+                                key={stype}
+                                onClick={() => handleAddSensor(selectedStructure.id, ctrl.id || ctrl.serial, stype)}
+                                title={`Attach ${stype.toUpperCase()} sensor to ${ctrl.model}`}
+                                style={{
+                                  padding: '1px 4px',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '3px',
+                                  fontSize: '9px',
+                                  fontWeight: 800,
+                                  color: '#475569',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                +{stype.toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Delete Controller Button */}
+                          <button
+                            onClick={() => handleRemoveController(selectedStructure.id, ctrl.id || ctrl.serial)}
+                            title="Remove Controller"
+                            style={{
+                              padding: '2px 4px',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              color: '#94A3B8',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Trash2 size={11} color="#EF4444" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Attached Sensors Chips */}
+                      {ctrl.sensors && ctrl.sensors.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                          {ctrl.sensors.map((sens) => (
+                            <div
+                              key={sens.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                padding: '1px 5px',
+                                backgroundColor: '#FFFFFF',
+                                borderRadius: '4px',
+                                border: '1px solid #CBD5E1',
+                                fontSize: '9px'
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, color: '#0F172A' }}>
+                                {sens.name.split(' ')[0]} ({sens.pin}):
+                              </span>
+                              <span style={{ fontWeight: 800, fontFamily: 'monospace', color: '#10B981' }}>
+                                {sens.value} {sens.unit}
+                              </span>
+                              <button
+                                onClick={() => handleRemoveSensor(selectedStructure.id, ctrl.id || ctrl.serial, sens.id)}
+                                style={{
+                                  border: 'none',
+                                  background: 'none',
+                                  color: '#94A3B8',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                title="Detach sensor"
+                              >
+                                <X size={9} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 6B. Live Reading Sensor Mode Telemetry Bar for Selected Structure (activeTab === 'view') */}
+      {activeTab === 'view' && selectedStructure && (
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '270px',
+          maxWidth: 'calc(100% - 560px)',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '14px',
+          border: '1px solid #CBD5E1',
+          padding: '8px 16px',
+          boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+          zIndex: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          pointerEvents: 'auto'
+        }}>
+          {/* Structure Name & Hardware Badge */}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Cpu size={14} color="#10B981" />
+              <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {selectedStructure.name}
+              </span>
+              <span style={{
+                fontSize: '10px',
                 fontWeight: 700,
-                color: '#FFFFFF',
-                cursor: 'pointer'
-              }}
-            >
-              <Sliders size={12} color="#10B981" />
-              <span>Inspect Controller</span>
-            </button>
+                fontFamily: 'monospace',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                color: '#10B981',
+                flexShrink: 0
+              }}>
+                {selectedStructure.controller.model}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '3px', fontSize: '11px', color: '#64748B', flexWrap: 'wrap' }}>
+              <span>Serial: {selectedStructure.controller.serial}</span>
+              <span>Wi-Fi: {selectedStructure.controller.rssi} dBm</span>
+              <span>EC: <strong style={{ color: '#10B981' }}>{selectedStructure.metrics.ec.toFixed(2)}</strong></span>
+              <span>pH: <strong style={{ color: '#2563EB' }}>{selectedStructure.metrics.ph.toFixed(2)}</strong></span>
+              <span>VPD: <strong>{selectedStructure.metrics.vpd.toFixed(2)} kPa</strong></span>
+            </div>
           </div>
+
+          {/* Hardware Diagnostic Inspect Modal Trigger (ONLY in view mode!) */}
+          <button
+            onClick={() => {
+              setIsHardwareModalOpen(true);
+              playSfx('select');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              backgroundColor: '#0F172A',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            <Sliders size={13} color="#10B981" />
+            <span>Inspect Controller</span>
+          </button>
         </div>
       )}
 
@@ -2507,8 +3003,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       {/* 8. Interactive Hover Tooltip over Farm Buildings & Controller Nodes */}
       {hoveredStructure && !activePlacingItem && !movingStructureId && (() => {
         const [hx, hy] = tileToScreen(
-          hoveredStructure.tileX + hoveredStructure.wTiles / 2, 
-          hoveredStructure.tileY, 
+          hoveredStructure.tileX + hoveredStructure.wTiles / 2,
+          hoveredStructure.tileY,
           50,
           gridCols,
           gridRows
