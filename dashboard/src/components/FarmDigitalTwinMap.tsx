@@ -5,7 +5,6 @@ import {
   ZoomIn, 
   ZoomOut, 
   CheckCircle2, 
-  Eye, 
   Hammer, 
   Trash2, 
   Cpu, 
@@ -13,11 +12,11 @@ import {
   RotateCw, 
   ShoppingBag, 
   X, 
-  Volume2, 
-  VolumeX, 
   Sliders,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Layers,
   Maximize2
 } from 'lucide-react';
 
@@ -649,69 +648,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     }
   }, [currentFarmIdx]);
 
-  // Audio SFX Synthesizer
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
-  const playSfx = (type: 'place' | 'rotate' | 'delete' | 'error' | 'select') => {
-    if (!soundEnabled) return;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') ctx.resume();
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      const now = ctx.currentTime;
-
-      if (type === 'place') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(320, now);
-        osc.frequency.exponentialRampToValueAtTime(740, now + 0.12);
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-        osc.start(now);
-        osc.stop(now + 0.16);
-      } else if (type === 'rotate') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(540, now);
-        osc.frequency.setValueAtTime(680, now + 0.05);
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.1);
-      } else if (type === 'delete') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(420, now);
-        osc.frequency.exponentialRampToValueAtTime(140, now + 0.18);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      } else if (type === 'error') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(180, now);
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      } else if (type === 'select') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, now);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-        osc.start(now);
-        osc.stop(now + 0.06);
-      }
-    } catch {
-      // AudioContext muted/unsupported
-    }
-  };
+  // SFX handler (Audio muted / disabled as requested)
+  const playSfx = (_type: 'place' | 'rotate' | 'delete' | 'error' | 'select') => {};
 
   // Farm Navigation
   const handlePrevFarm = () => {
@@ -855,6 +793,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     vpdHeatmap: true,
     alerts: true
   });
+  const [isLayersOpen, setIsLayersOpen] = useState(false);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const selectedStructure = structures.find(s => s.id === selectedId) || structures[0];
@@ -873,7 +812,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [soundEnabled]);
+  }, []);
 
   // Convert mouse coordinate to isometric tile
   const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -1667,64 +1606,31 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         zIndex: 20,
         pointerEvents: 'none'
       }}>
-        {/* Left: Mode Toggle */}
+        {/* Left: Live Status Mode Indicator */}
         <div style={{
           display: 'flex',
-          gap: '4px',
-          padding: '4px',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 14px',
           backgroundColor: '#FFFFFF',
-          borderRadius: '10px',
-          border: '1px solid #E2E8F0',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+          borderRadius: '20px',
+          border: '1px solid #CBD5E1',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
           pointerEvents: 'auto'
         }}>
-          <button
-            onClick={() => {
-              setActiveTab('view');
-              setActivePlacingItem(null);
-              setMovingStructureId(null);
-              setIsShopOpen(false);
-              playSfx('select');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: activeTab === 'view' ? '#0F172A' : 'transparent',
-              color: activeTab === 'view' ? '#FFFFFF' : '#64748B',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            <Eye size={14} />
-            Digital Twin View
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('build');
-              playSfx('select');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: activeTab === 'build' ? '#10B981' : 'transparent',
-              color: activeTab === 'build' ? '#FFFFFF' : '#64748B',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            <Hammer size={14} />
-            FarmVille 1x1 Builder
-          </button>
+          <span style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: activeTab === 'build' ? '#F59E0B' : '#10B981',
+            boxShadow: `0 0 6px ${activeTab === 'build' ? '#F59E0B' : '#10B981'}`
+          }} />
+          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
+            {activeTab === 'build' ? 'Layout Builder Active' : 'Live Sensor Monitoring'}
+          </span>
+          <span style={{ fontSize: '10px', color: '#64748B', fontFamily: 'monospace' }}>
+            ({structures.length} bays)
+          </span>
         </div>
 
         {/* Center: Multi-Farm Navigator Pill (Arrow Switcher directly on the Farm) */}
@@ -1794,120 +1700,191 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           </button>
         </div>
 
-        {/* Right: Farm Land Resizer, Sound, Shop, Save Layout */}
+        {/* Right: Grid Resizer & Add Structures (in build mode) & Map Layers Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
-          {saveToast && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              backgroundColor: '#10B981',
-              color: '#FFFFFF',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-            }}>
-              <CheckCircle2 size={14} />
-              {toastMessage}
-            </div>
+          {/* Builder Mode Controls */}
+          {activeTab === 'build' && (
+            <>
+              <button
+                onClick={handleCycleGridSize}
+                title="Expand / cycle farm grid size"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '7px 12px',
+                  backgroundColor: '#FFFFFF',
+                  color: '#0F172A',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                }}
+              >
+                <Maximize2 size={13} color="#10B981" />
+                <span>Grid: {gridCols}×{gridRows}</span>
+              </button>
+
+              <button
+                onClick={() => setIsShopOpen(!isShopOpen)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  backgroundColor: isShopOpen ? '#0F172A' : '#10B981',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <ShoppingBag size={14} />
+                <span>{isShopOpen ? 'Close Catalog' : 'Add Structures'}</span>
+              </button>
+            </>
           )}
 
-          {/* Farm Land Grid Resizer (FarmVille Style Land Expansion) */}
-          {activeTab === 'build' && (
+          {/* Map Layers Dropdown Button */}
+          <div style={{ position: 'relative' }}>
             <button
-              onClick={handleCycleGridSize}
-              title="Expand / cycle farm grid size"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '6px 12px',
-                backgroundColor: '#FFFFFF',
-                color: '#0F172A',
-                border: '1px solid #CBD5E1',
-                borderRadius: '8px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
-              }}
-            >
-              <Maximize2 size={13} color="#10B981" />
-              <span>Grid: {gridCols}×{gridRows}</span>
-            </button>
-          )}
-
-          {/* Sound Toggle */}
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            title={soundEnabled ? 'Mute SFX' : 'Enable SFX'}
-            style={{
-              padding: '8px',
-              backgroundColor: '#FFFFFF',
-              color: '#64748B',
-              borderRadius: '8px',
-              border: '1px solid #E2E8F0',
-              cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
-            }}
-          >
-            {soundEnabled ? <Volume2 size={15} color="#10B981" /> : <VolumeX size={15} color="#94A3B8" />}
-          </button>
-
-          {/* FarmVille Market Shop Button */}
-          {activeTab === 'build' && (
-            <button
-              onClick={() => {
-                setIsShopOpen(!isShopOpen);
-                playSfx('select');
-              }}
+              onClick={() => setIsLayersOpen(!isLayersOpen)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '8px 16px',
-                backgroundColor: isShopOpen ? '#0F172A' : '#10B981',
-                color: '#FFFFFF',
+                padding: '7px 12px',
+                backgroundColor: isLayersOpen ? '#0F172A' : '#FFFFFF',
+                color: isLayersOpen ? '#FFFFFF' : '#0F172A',
                 borderRadius: '8px',
-                border: 'none',
+                border: '1px solid #CBD5E1',
                 fontSize: '12px',
-                fontWeight: 800,
+                fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                transition: 'all 0.15s ease'
               }}
             >
-              <ShoppingBag size={14} />
-              <span>{isShopOpen ? 'Close Market' : 'Farm Market Shop'}</span>
+              <Layers size={14} color={isLayersOpen ? '#10B981' : '#64748B'} />
+              <span>Map Layers</span>
+              <span style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                fontFamily: 'monospace',
+                color: isLayersOpen ? '#34D399' : '#64748B',
+                backgroundColor: isLayersOpen ? 'rgba(16, 185, 129, 0.2)' : '#F1F5F9',
+                padding: '1px 5px',
+                borderRadius: '4px'
+              }}>
+                {Object.values(layers).filter(Boolean).length}/6
+              </span>
+              <ChevronDown size={14} color={isLayersOpen ? '#FFFFFF' : '#64748B'} style={{ transform: isLayersOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
             </button>
-          )}
 
-          <button
-            onClick={() => {
-              playSfx('place');
-              setToastMessage('Farm Floorplan Saved & Dispatched to Edge Hardware!');
-              setSaveToast(true);
-              setTimeout(() => setSaveToast(false), 2200);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
-              color: '#0F172A',
-              borderRadius: '8px',
-              border: '1px solid #E2E8F0',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-            }}
-          >
-            <Save size={14} color="#10B981" />
-            Save Layout
-          </button>
+            {/* Dropdown Menu */}
+            {isLayersOpen && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '8px',
+                width: '210px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '12px',
+                border: '1px solid #E2E8F0',
+                padding: '14px',
+                boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                zIndex: 60
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #F1F5F9' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
+                    Active Overlays
+                  </span>
+                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#10B981', fontWeight: 700 }}>
+                    {Object.values(layers).filter(Boolean).length} / 6
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[
+                    { key: 'controllers', label: 'Controllers' },
+                    { key: 'sensors', label: 'EC / pH Tags' },
+                    { key: 'pumps', label: 'Dosing Pumps' },
+                    { key: 'irrigation', label: 'Irrigation Lines' },
+                    { key: 'vpdHeatmap', label: 'VPD Heatmap' },
+                    { key: 'alerts', label: 'Alert Chips' }
+                  ].map(item => (
+                    <label
+                      key={item.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '11px',
+                        color: '#334155',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '4px 6px',
+                        borderRadius: '6px',
+                        transition: 'background 0.1s'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <span>{item.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={(layers as any)[item.key]}
+                        onChange={() => setLayers({ ...layers, [item.key]: !(layers as any)[item.key] })}
+                        style={{ accentColor: '#10B981', cursor: 'pointer', width: '15px', height: '15px' }}
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                {/* Zoom Controls inside Dropdown */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: '12px',
+                  paddingTop: '10px',
+                  borderTop: '1px solid #F1F5F9'
+                }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>Zoom:</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => setZoomLevel(Math.min(1.4, zoomLevel + 0.1))}
+                      title="Zoom In"
+                      style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <ZoomIn size={13} color="#64748B" />
+                    </button>
+                    <button
+                      onClick={() => setZoomLevel(Math.max(0.7, zoomLevel - 0.1))}
+                      title="Zoom Out"
+                      style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <ZoomOut size={13} color="#64748B" />
+                    </button>
+                    <button
+                      onClick={() => setZoomLevel(1)}
+                      title="Reset Zoom"
+                      style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <RotateCcw size={13} color="#64748B" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2158,95 +2135,93 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         </div>
       </div>
 
-      {/* 5. Floating Right Layers Card & Zoom Controls */}
+      {/* 5. Floating Bottom-Right Controls: Save Layout & Builder Toggle */}
       <div style={{
         position: 'absolute',
-        top: '68px',
+        bottom: '20px',
         right: '20px',
-        width: '180px',
-        backgroundColor: '#FFFFFF',
-        borderRadius: '12px',
-        border: '1px solid #E2E8F0',
-        padding: '16px',
-        boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.06)',
-        zIndex: 15
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        zIndex: 25,
+        pointerEvents: 'auto'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
-            Map Layers
-          </span>
-          <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#64748B' }}>
-            5/6
-          </span>
-        </div>
+        {saveToast && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 14px',
+            backgroundColor: '#10B981',
+            color: '#FFFFFF',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontWeight: 700,
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+          }}>
+            <CheckCircle2 size={14} />
+            {toastMessage}
+          </div>
+        )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {[
-            { key: 'controllers', label: 'Controllers' },
-            { key: 'sensors', label: 'EC / pH Tags' },
-            { key: 'pumps', label: 'Dosing Pumps' },
-            { key: 'irrigation', label: 'Irrigation Lines' },
-            { key: 'vpdHeatmap', label: 'VPD Heatmap' },
-            { key: 'alerts', label: 'Alert Chips' }
-          ].map(item => (
-            <label
-              key={item.key}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '11px',
-                color: '#334155',
-                cursor: 'pointer'
-              }}
-            >
-              <span>{item.label}</span>
-              <input
-                type="checkbox"
-                checked={(layers as any)[item.key]}
-                onChange={() => setLayers({ ...layers, [item.key]: !(layers as any)[item.key] })}
-                style={{ accentColor: '#10B981', cursor: 'pointer' }}
-              />
-            </label>
-          ))}
-        </div>
+        {/* Save Layout Button (Left of Builder) */}
+        <button
+          onClick={() => {
+            setToastMessage('Farm Floorplan Saved & Dispatched to Edge Hardware!');
+            setSaveToast(true);
+            setTimeout(() => setSaveToast(false), 2200);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '9px 16px',
+            backgroundColor: '#FFFFFF',
+            color: '#0F172A',
+            borderRadius: '8px',
+            border: '1px solid #CBD5E1',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Save size={15} color="#10B981" />
+          <span>Save Layout</span>
+        </button>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-around',
-          marginTop: '16px',
-          paddingTop: '12px',
-          borderTop: '1px solid #E2E8F0'
-        }}>
-          <button
-            onClick={() => {
-              setZoomLevel(Math.min(1.4, zoomLevel + 0.1));
-              playSfx('select');
-            }}
-            style={{ padding: '6px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            <ZoomIn size={14} color="#64748B" />
-          </button>
-          <button
-            onClick={() => {
-              setZoomLevel(Math.max(0.7, zoomLevel - 0.1));
-              playSfx('select');
-            }}
-            style={{ padding: '6px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            <ZoomOut size={14} color="#64748B" />
-          </button>
-          <button
-            onClick={() => {
-              setZoomLevel(1);
-              playSfx('select');
-            }}
-            style={{ padding: '6px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            <RotateCcw size={14} color="#64748B" />
-          </button>
-        </div>
+        {/* Builder Toggle Button */}
+        <button
+          onClick={() => {
+            const nextMode = activeTab === 'build' ? 'view' : 'build';
+            setActiveTab(nextMode);
+            if (nextMode === 'view') {
+              setActivePlacingItem(null);
+              setMovingStructureId(null);
+              setIsShopOpen(false);
+            }
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            backgroundColor: activeTab === 'build' ? '#10B981' : '#0F172A',
+            color: '#FFFFFF',
+            borderRadius: '8px',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            boxShadow: activeTab === 'build' ? '0 4px 16px rgba(16, 185, 129, 0.4)' : '0 4px 14px rgba(0,0,0,0.15)',
+            transition: 'all 0.15s ease'
+          }}
+          title={activeTab === 'build' ? 'Exit Builder (return to reading sensors)' : 'Enter Builder mode'}
+        >
+          <Hammer size={16} />
+          <span>{activeTab === 'build' ? 'Exit Builder' : 'Builder'}</span>
+        </button>
       </div>
 
       {/* 6. FarmVille Action Toolbar for Selected Structure (Move, Rotate, Resizing, Remove, Inspect) */}
