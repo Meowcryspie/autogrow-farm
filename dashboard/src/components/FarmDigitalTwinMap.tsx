@@ -685,6 +685,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     setGridCols(currentFarm.gridCols);
     setGridRows(currentFarm.gridRows);
     setStructures(currentFarm.structures);
+    setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
     if (currentFarm.structures.length > 0) {
       setSelectedId(currentFarm.structures[0].id);
     }
@@ -819,9 +821,23 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   // Moving existing structure mode
   const [movingStructureId, setMovingStructureId] = useState<string | null>(null);
 
-  // Mouse hover tile
+  // Mouse hover tile & Viewport Zoom/Pan (FarmVille camera navigation)
   const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number } | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const contentAreaRef = useRef<HTMLDivElement | null>(null);
+  const panStateRef = useRef<{
+    active: boolean;
+    button: number;
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+    didDrag: boolean;
+  }>({ active: false, button: -1, startX: 0, startY: 0, startPanX: 0, startPanY: 0, didDrag: false });
+  const suppressClickRef = useRef<boolean>(false);
+
   const [saveToast, setSaveToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Layout Synced to Edge Controllers!');
 
@@ -883,6 +899,140 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const selectedStructure = structures.find(s => s.id === selectedId) || structures[0];
   const hoveredStructure = structures.find(s => s.id === hoveredId);
+
+  // Camera pan limits: tight wiggle when zoomed out, full exploration when zoomed in or on large grids
+  const getPanLimits = (zoom: number, cols: number = gridCols, rows: number = gridRows) => {
+    const rect = contentAreaRef.current?.getBoundingClientRect();
+    const viewW = rect?.width || 900;
+    const viewH = rect?.height || 660;
+
+    // Gentle wiggle room when fully zoomed out
+    const wiggleX = 48;
+    const wiggleY = 36;
+
+    // Extra travel if grid is larger than baseline 12x10
+    const extraGridX = Math.max(0, (cols - 12) * 22) * zoom;
+    const extraGridY = Math.max(0, (rows - 10) * 14) * zoom;
+
+    // Proportional overflow travel when zoomed in (> 1.0)
+    const zoomedSpanX = Math.max(0, (zoom - 1) * (viewW * 0.55));
+    const zoomedSpanY = Math.max(0, (zoom - 1) * (viewH * 0.55));
+
+    return {
+      maxX: Math.round(wiggleX + zoomedSpanX + extraGridX),
+      maxY: Math.round(wiggleY + zoomedSpanY + extraGridY)
+    };
+  };
+
+  const clampPan = (x: number, y: number, zoom: number, cols: number = gridCols, rows: number = gridRows) => {
+    const { maxX, maxY } = getPanLimits(zoom, cols, rows);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y))
+    };
+  };
+
+  const updateZoom = (nextZoom: number, pivotClient?: { x: number; y: number }) => {
+    const clampedZoom = Math.max(0.65, Math.min(2.5, Math.round(nextZoom * 100) / 100));
+    if (clampedZoom === zoomLevel) return;
+
+    const rect = contentAreaRef.current?.getBoundingClientRect();
+    if (pivotClient && rect) {
+      const cx = pivotClient.x - (rect.left + rect.width / 2);
+      const cy = pivotClient.y - (rect.top + rect.height / 2);
+      const ratio = clampedZoom / zoomLevel;
+      const nextPanX = cx - (cx - panOffset.x) * ratio;
+      const nextPanY = cy - (cy - panOffset.y) * ratio;
+      setPanOffset(clampPan(nextPanX, nextPanY, clampedZoom));
+    } else {
+      setPanOffset(prev => clampPan(prev.x, prev.y, clampedZoom));
+    }
+    setZoomLevel(clampedZoom);
+  };
+
+  const handleResetView = () => {
+    setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  // Re-clamp pan if grid size changes
+  useEffect(() => {
+    setPanOffset(prev => clampPan(prev.x, prev.y, zoomLevel, gridCols, gridRows));
+  }, [gridCols, gridRows]);
+
+  // Attach native wheel zoom (non-passive) on the map viewport
+  useEffect(() => {
+    const el = contentAreaRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if ((e.target as HTMLElement)?.closest('[data-map-hud="true"]')) return;
+      e.preventDefault();
+      const step = e.deltaY < 0 ? 0.15 : -0.15;
+      updateZoom(zoomLevel + step, { x: e.clientX, y: e.clientY });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [zoomLevel, panOffset, gridCols, gridRows]);
+
+  // Global mousemove / mouseup for smooth FarmVille panning (Right-click, Middle-click, or Left-drag)
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      const p = panStateRef.current;
+      if (!p.active) return;
+
+      const dx = e.clientX - p.startX;
+      const dy = e.clientY - p.startY;
+      if (!p.didDrag && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        p.didDrag = true;
+        setIsPanning(true);
+      }
+
+      if (p.didDrag || p.button === 2 || p.button === 1) {
+        setPanOffset(clampPan(p.startPanX + dx, p.startPanY + dy, zoomLevel));
+      }
+    };
+
+    const onMouseUp = () => {
+      const p = panStateRef.current;
+      if (!p.active) return;
+      if (p.didDrag) {
+        suppressClickRef.current = true;
+        setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 50);
+      }
+      p.active = false;
+      p.didDrag = false;
+      setIsPanning(false);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [zoomLevel, gridCols, gridRows]);
+
+  const handleMapMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('[data-map-hud="true"]')) return;
+    // Allow right-click (2), middle-click (1), or left-click drag (0)
+    if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
+    if (e.button === 1) e.preventDefault();
+
+    panStateRef.current = {
+      active: true,
+      button: e.button,
+      startX: e.clientX,
+      startY: e.clientY,
+      startPanX: panOffset.x,
+      startPanY: panOffset.y,
+      didDrag: false
+    };
+    if (e.button === 2 || e.button === 1) {
+      setIsPanning(true);
+    }
+  };
 
   // Farmland Grid W x L Control Handlers
   const handleGridColsChange = (delta: number) => {
@@ -1046,6 +1196,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   };
 
   const handleStructureClick = (s: TileStructure) => {
+    if (suppressClickRef.current) return;
     setSelectedId(s.id);
     onSelectStructure?.(s);
     if (activeTab === 'build') {
@@ -1068,20 +1219,33 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Convert mouse coordinate to isometric tile
+  // Convert mouse coordinate to isometric tile (accounting for SVG viewBox, zoom, and pan via CTM)
   const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (activeTab !== 'build') return;
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    if (activeTab !== 'build' || isPanning) return;
+    const svg = svgRef.current;
+    if (!svg) return;
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const ctm = svg.getScreenCTM();
+    let svgX = 0;
+    let svgY = 0;
+    if (ctm) {
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgPt = pt.matrixTransform(ctm.inverse());
+      svgX = svgPt.x;
+      svgY = svgPt.y;
+    } else {
+      const rect = svg.getBoundingClientRect();
+      svgX = e.clientX - rect.left;
+      svgY = e.clientY - rect.top;
+    }
 
     const originX = 540;
     const originY = 115 - ((gridCols + gridRows) - 22) * 5;
 
-    const dx = mouseX - originX;
-    const dy = mouseY - originY;
+    const dx = svgX - originX;
+    const dy = svgY - originY;
 
     const tx = Math.floor((dx / (TILE_W / 2) + dy / (TILE_H / 2)) / 2);
     const ty = Math.floor((dy / (TILE_H / 2) - dx / (TILE_W / 2)) / 2);
@@ -1150,7 +1314,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
   // Place or Move Object on Click
   const handleTileClick = (tx: number, ty: number) => {
-    if (activeTab !== 'build') return;
+    if (activeTab !== 'build' || suppressClickRef.current) return;
 
     if (movingStructureId) {
       const moving = structures.find(s => s.id === movingStructureId);
@@ -1815,26 +1979,37 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     }}>
 
       {/* Main Content Area (~80% map, filters, HUD and builder) */}
-      <div style={{
-        flex: 1,
-        minWidth: 0,
-        height: '100%',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
+      <div
+        ref={contentAreaRef}
+        onMouseDown={handleMapMouseDown}
+        onContextMenu={(e) => e.preventDefault()}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          height: '100%',
+          position: 'relative',
+          overflow: 'hidden',
+          cursor: isPanning ? 'grabbing' : (zoomLevel > 1 || gridCols > 14 || gridRows > 12 ? 'grab' : 'default'),
+          userSelect: 'none',
+          WebkitUserSelect: 'none'
+        }}
+      >
 
       {/* 1. Top Map Toolbar with Multi-Farm Navigator & FarmVille Mode Switcher */}
-      <div style={{
-        position: 'absolute',
-        top: '16px',
-        left: '20px',
-        right: '20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 20,
-        pointerEvents: 'none'
-      }}>
+      <div
+        data-map-hud="true"
+        style={{
+          position: 'absolute',
+          top: '16px',
+          left: '20px',
+          right: '20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          zIndex: 20,
+          pointerEvents: 'none'
+        }}
+      >
         {/* Left: Live Status Mode Indicator */}
         <div style={{
           display: 'flex',
@@ -2037,25 +2212,27 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                   paddingTop: '10px',
                   borderTop: '1px solid #F1F5F9'
                 }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>Zoom:</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>
+                    Zoom ({Math.round(zoomLevel * 100)}%):
+                  </span>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
-                      onClick={() => setZoomLevel(Math.min(1.4, zoomLevel + 0.1))}
+                      onClick={() => updateZoom(zoomLevel + 0.2)}
                       title="Zoom In"
                       style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     >
                       <ZoomIn size={13} color="#64748B" />
                     </button>
                     <button
-                      onClick={() => setZoomLevel(Math.max(0.7, zoomLevel - 0.1))}
+                      onClick={() => updateZoom(zoomLevel - 0.2)}
                       title="Zoom Out"
                       style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     >
                       <ZoomOut size={13} color="#64748B" />
                     </button>
                     <button
-                      onClick={() => setZoomLevel(1)}
-                      title="Reset Zoom"
+                      onClick={handleResetView}
+                      title="Reset Zoom & Center Map"
                       style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     >
                       <RotateCcw size={13} color="#64748B" />
@@ -2070,22 +2247,25 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
       {/* 2. FarmVille Placement Status Bar (When an item is ready to drop on tiles) */}
       {activeTab === 'build' && (activePlacingItem || movingStructureId) && (
-        <div style={{
-          position: 'absolute',
-          top: '68px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 25,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '8px 18px',
-          backgroundColor: '#0F172A',
-          color: '#FFFFFF',
-          borderRadius: '30px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-          border: '1px solid #10B981'
-        }}>
+        <div
+          data-map-hud="true"
+          style={{
+            position: 'absolute',
+            top: '68px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 25,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '8px 18px',
+            backgroundColor: '#0F172A',
+            color: '#FFFFFF',
+            borderRadius: '30px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+            border: '1px solid #10B981'
+          }}
+        >
           <span style={{ fontSize: '13px' }}>
             {movingStructureId ? '✋ Moving:' : activePlacingItem?.icon}
           </span>
@@ -2147,17 +2327,124 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
 
 
+      {/* 4B. Floating Pan Mode Badge (Top-Left below status pill when zoomed/expanded) */}
+      {(zoomLevel > 1 || gridCols > 14 || gridRows > 12) && (
+        <div
+          data-map-hud="true"
+          style={{
+            position: 'absolute',
+            top: '70px',
+            left: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '4px 10px',
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            color: '#F8FAFC',
+            borderRadius: '8px',
+            fontSize: '10px',
+            fontWeight: 700,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            zIndex: 20,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <Move size={11} color="#10B981" />
+          <span>Drag or Right-Click to Pan</span>
+        </div>
+      )}
+
+      {/* 4C. Floating Bottom-Left Camera Zoom Pill */}
+      <div
+        data-map-hud="true"
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '4px',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '10px',
+          border: '1px solid #CBD5E1',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+          zIndex: 25,
+          pointerEvents: 'auto'
+        }}
+      >
+        <button
+          onClick={() => updateZoom(zoomLevel - 0.2)}
+          disabled={zoomLevel <= 0.65}
+          title="Zoom Out (or scroll wheel down)"
+          style={{
+            padding: '5px 7px',
+            backgroundColor: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            borderRadius: '6px',
+            cursor: zoomLevel <= 0.65 ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            opacity: zoomLevel <= 0.65 ? 0.5 : 1
+          }}
+        >
+          <ZoomOut size={14} color="#0F172A" />
+        </button>
+
+        <button
+          onClick={handleResetView}
+          title="Reset Zoom (100%) & Center Camera"
+          style={{
+            padding: '4px 8px',
+            backgroundColor: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#F1F5F9' : 'transparent',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: 800,
+            fontFamily: 'monospace',
+            color: '#0F172A',
+            cursor: 'pointer',
+            minWidth: '46px',
+            textAlign: 'center'
+          }}
+        >
+          {Math.round(zoomLevel * 100)}%
+        </button>
+
+        <button
+          onClick={() => updateZoom(zoomLevel + 0.2)}
+          disabled={zoomLevel >= 2.5}
+          title="Zoom In (or scroll wheel up)"
+          style={{
+            padding: '5px 7px',
+            backgroundColor: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            borderRadius: '6px',
+            cursor: zoomLevel >= 2.5 ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            opacity: zoomLevel >= 2.5 ? 0.5 : 1
+          }}
+        >
+          <ZoomIn size={14} color="#0F172A" />
+        </button>
+      </div>
+
       {/* 5. Floating Bottom-Right Controls: Save Layout (Builder Mode only) & Builder/Exit Toggle */}
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        zIndex: 30,
-        pointerEvents: 'auto'
-      }}>
+      <div
+        data-map-hud="true"
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          zIndex: 30,
+          pointerEvents: 'auto'
+        }}
+      >
         {saveToast && (
           <div style={{
             display: 'flex',
@@ -2232,21 +2519,24 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
       {/* 6A. Builder Mode Contextual Bottom Container (activeTab === 'build') */}
       {activeTab === 'build' && (
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          maxWidth: 'calc(100% - 240px)',
-          minWidth: '420px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '14px',
-          border: '1px solid #CBD5E1',
-          padding: '12px 18px',
-          boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
-          zIndex: 25,
-          pointerEvents: 'auto'
-        }}>
+        <div
+          data-map-hud="true"
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: 'calc(100% - 280px)',
+            minWidth: '400px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '14px',
+            border: '1px solid #CBD5E1',
+            padding: '12px 18px',
+            boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+            zIndex: 25,
+            pointerEvents: 'auto'
+          }}
+        >
           {/* VIEW 1: FARM LAYOUT */}
           {builderContainerView === 'farm_layout' && (
             <div>
@@ -2837,25 +3127,28 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
       {/* 6B. Live Reading Sensor Mode Telemetry Bar for Selected Structure (activeTab === 'view') - CENTERED */}
       {activeTab === 'view' && selectedStructure && (
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          maxWidth: 'calc(100% - 240px)',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '14px',
-          border: '1px solid #CBD5E1',
-          padding: '10px 20px',
-          boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
-          zIndex: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '6px',
-          pointerEvents: 'auto',
-          textAlign: 'center'
-        }}>
+        <div
+          data-map-hud="true"
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: 'calc(100% - 280px)',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '14px',
+            border: '1px solid #CBD5E1',
+            padding: '10px 20px',
+            boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+            zIndex: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            pointerEvents: 'auto',
+            textAlign: 'center'
+          }}
+        >
           {/* Facility Name & Hardware Badge - CENTERED */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
             <Cpu size={14} color="#10B981" />
@@ -2919,6 +3212,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         viewBox="0 0 1080 620"
         onMouseMove={handleSvgMouseMove}
         onClick={() => {
+          if (suppressClickRef.current) return;
           if (hoveredTile && (activePlacingItem || movingStructureId)) {
             handleTileClick(hoveredTile.x, hoveredTile.y);
           }
@@ -2927,9 +3221,9 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           width: '100%',
           height: '100%',
           display: 'block',
-          transform: `scale(${zoomLevel})`,
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
           transformOrigin: 'center center',
-          transition: 'transform 0.15s ease-out'
+          transition: isPanning ? 'none' : 'transform 0.15s ease-out'
         }}
       >
         <defs>
@@ -3000,7 +3294,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       </svg>
 
       {/* 8. Interactive Hover Tooltip over Farm Buildings & Controller Nodes */}
-      {hoveredStructure && !activePlacingItem && !movingStructureId && (() => {
+      {hoveredStructure && !activePlacingItem && !movingStructureId && !isPanning && (() => {
         const [hx, hy] = tileToScreen(
           hoveredStructure.tileX + hoveredStructure.wTiles / 2,
           hoveredStructure.tileY,
@@ -3008,15 +3302,29 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           gridCols,
           gridRows
         );
-        const isNearTop = hy < 170;
-        const clampedX = Math.min(Math.max(150, hx), 920);
+        let domX = hx;
+        let domY = hy;
+        const svg = svgRef.current;
+        const containerRect = contentAreaRef.current?.getBoundingClientRect();
+        const ctm = svg?.getScreenCTM();
+        if (svg && ctm && containerRect) {
+          const pt = svg.createSVGPoint();
+          pt.x = hx;
+          pt.y = hy;
+          const screenPt = pt.matrixTransform(ctm);
+          domX = screenPt.x - containerRect.left;
+          domY = screenPt.y - containerRect.top;
+        }
+        const maxDomX = (containerRect?.width || 900) - 135;
+        const isNearTop = domY < 180;
+        const clampedX = Math.min(Math.max(135, domX), maxDomX);
 
         return (
           <div
             style={{
               position: 'absolute',
               left: `${clampedX}px`,
-              top: isNearTop ? `${hy + 24}px` : `${hy - 12}px`,
+              top: isNearTop ? `${Math.max(70, domY + 24)}px` : `${Math.max(70, domY - 12)}px`,
               transform: isNearTop ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
               backgroundColor: '#0F172A',
               color: '#FFFFFF',
