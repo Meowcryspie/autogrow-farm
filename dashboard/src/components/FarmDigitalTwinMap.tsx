@@ -121,6 +121,7 @@ export interface FarmLocationData {
   name: string;
   location: string;
   tag: string;
+  isActive?: boolean;
   gridCols: number;
   gridRows: number;
   structures: TileStructure[];
@@ -146,6 +147,7 @@ export interface CatalogItem {
 }
 
 export interface FarmDigitalTwinMapProps {
+  farms?: FarmLocationData[];
   activeFarmIndex?: number;
   onFarmChange?: (index: number) => void;
   onSelectStructure?: (struct: TileStructure) => void;
@@ -677,6 +679,7 @@ export const FARMS_DATA: FarmLocationData[] = [
 ];
 
 export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
+  farms = FARMS_DATA,
   activeFarmIndex = 0,
   onFarmChange,
   onSelectStructure,
@@ -690,13 +693,15 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     setCurrentFarmIdx(activeFarmIndex);
   }, [activeFarmIndex]);
 
-  const currentFarm = FARMS_DATA[currentFarmIdx] || FARMS_DATA[0];
+  const safeFarms = farms.length > 0 ? farms : FARMS_DATA;
+  const currentFarm = safeFarms[currentFarmIdx] || safeFarms[0];
+  const isFarmDeactivated = currentFarm.isActive === false;
 
   // Farm Land Dynamic Grid Sizing (Grower can expand/shrink just like FarmVille)
   const [gridCols, setGridCols] = useState<number>(currentFarm.gridCols);
   const [gridRows, setGridRows] = useState<number>(currentFarm.gridRows);
 
-  // Sync grid dimensions and structures when farm changes
+  // Sync grid dimensions and structures when farm changes or list mutates
   useEffect(() => {
     setGridCols(currentFarm.gridCols);
     setGridRows(currentFarm.gridRows);
@@ -706,21 +711,21 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     if (currentFarm.structures.length > 0) {
       setSelectedId(currentFarm.structures[0].id);
     }
-  }, [currentFarmIdx]);
+  }, [currentFarmIdx, currentFarm?.id, safeFarms.length]);
 
   // SFX handler (Audio muted / disabled as requested)
   const playSfx = (_type: 'place' | 'rotate' | 'delete' | 'error' | 'select') => { };
 
   // Farm Navigation
   const handlePrevFarm = () => {
-    const nextIdx = (currentFarmIdx - 1 + FARMS_DATA.length) % FARMS_DATA.length;
+    const nextIdx = (currentFarmIdx - 1 + safeFarms.length) % safeFarms.length;
     setCurrentFarmIdx(nextIdx);
     onFarmChange?.(nextIdx);
     playSfx('select');
   };
 
   const handleNextFarm = () => {
-    const nextIdx = (currentFarmIdx + 1) % FARMS_DATA.length;
+    const nextIdx = (currentFarmIdx + 1) % safeFarms.length;
     setCurrentFarmIdx(nextIdx);
     onFarmChange?.(nextIdx);
     playSfx('select');
@@ -2067,11 +2072,11 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            backgroundColor: activeTab === 'build' ? '#F59E0B' : '#10B981',
-            boxShadow: `0 0 6px ${activeTab === 'build' ? '#F59E0B' : '#10B981'}`
+            backgroundColor: isFarmDeactivated ? '#94A3B8' : activeTab === 'build' ? '#F59E0B' : '#10B981',
+            boxShadow: isFarmDeactivated ? 'none' : `0 0 6px ${activeTab === 'build' ? '#F59E0B' : '#10B981'}`
           }} />
-          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
-            {activeTab === 'build' ? 'Layout Builder Active' : 'Live Sensor Monitoring'}
+          <span style={{ fontSize: '11px', fontWeight: 800, color: isFarmDeactivated ? '#64748B' : '#0F172A', letterSpacing: '-0.01em' }}>
+            {isFarmDeactivated ? 'Farm Deactivated' : activeTab === 'build' ? 'Layout Builder Active' : 'Live Sensor Monitoring'}
           </span>
           <span style={{ fontSize: '10px', color: '#64748B', fontFamily: 'monospace' }}>
             ({structures.length} bays)
@@ -2120,7 +2125,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                 color: '#10B981',
                 fontFamily: 'monospace'
               }}>
-                FARM {currentFarmIdx + 1}/{FARMS_DATA.length}
+                FARM {currentFarmIdx + 1}/{safeFarms.length}
               </span>
             </div>
             <div style={{ fontSize: '10px', color: '#64748B' }}>
