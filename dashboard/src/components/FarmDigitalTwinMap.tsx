@@ -153,6 +153,7 @@ export interface FarmDigitalTwinMapProps {
   onSelectStructure?: (struct: TileStructure) => void;
   selectedStructureId?: string;
   onTriggerDose?: (actuatorId: string, durationSec: number) => Promise<boolean>;
+  onSaveStructures?: (farmId: string, updatedStructures: TileStructure[], gridCols: number, gridRows: number) => void;
 }
 
 // 1x1 Isometric Projection Math
@@ -684,7 +685,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   onFarmChange,
   onSelectStructure,
   selectedStructureId: externalSelectedId,
-  onTriggerDose
+  onTriggerDose,
+  onSaveStructures
 }) => {
   // Active Farm selection state
   const [currentFarmIdx, setCurrentFarmIdx] = useState<number>(activeFarmIndex);
@@ -895,6 +897,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
 
   // Save layout action
   const handleSaveLayout = () => {
+    onSaveStructures?.(currentFarm.id, structures, gridCols, gridRows);
     setToastMessage('Farm Floorplan Saved & Dispatched to Edge Hardware!');
     setSaveToast(true);
     setHasUnsavedChanges(false);

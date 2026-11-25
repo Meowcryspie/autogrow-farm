@@ -5,13 +5,11 @@ import {
   Smartphone, 
   Activity, 
   Cpu, 
-  Droplet, 
   ChevronRight, 
   ChevronLeft,
   ChevronDown,
   Check,
   Sparkles, 
-  Flame, 
   TrendingUp,
   Sliders,
   Plus,
@@ -21,6 +19,7 @@ import {
   X
 } from 'lucide-react';
 import { FarmDigitalTwinMap, TileStructure, FARMS_DATA, FarmLocationData } from './FarmDigitalTwinMap';
+import { ExecutiveAnalyticsDashboard } from './ExecutiveAnalyticsDashboard';
 import { FarmOutputAnalytics } from './FarmOutputAnalytics';
 import { DoseSuggestions } from './DoseSuggestions';
 import { ActuatorMatrix } from './ActuatorMatrix';
@@ -814,209 +813,36 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
                 onSelectStructure={(struct) => setSelectedStruct(struct)}
                 selectedStructureId={selectedStruct?.id}
                 onTriggerDose={onTriggerCommand}
+                onSaveStructures={(farmId, updatedStructures, cols, rows) => {
+                  setFarms((prev) =>
+                    prev.map((f) =>
+                      f.id === farmId
+                        ? {
+                            ...f,
+                            gridCols: cols,
+                            gridRows: rows,
+                            structures: updatedStructures,
+                            stats: {
+                              ...f.stats,
+                              totalAreaSqM: cols * rows * 40,
+                              activeControllers: updatedStructures.reduce(
+                                (sum, s) => sum + (s.controllers && s.controllers.length > 0 ? s.controllers.length : 1),
+                                0
+                              )
+                            }
+                          }
+                        : f
+                    )
+                  );
+                }}
               />
 
-              {/* Bottom Row of 3 Tracking Cards (WarehouseOS Exact Layout) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
-                {/* Card 1: Controller Fleet Tracking */}
-                <div style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '12px',
-                  border: '1px solid #E2E8F0',
-                  padding: '20px',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Cpu size={16} color="#0F172A" />
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                        Controller fleet tracking
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setNavTab('controllers')}
-                      style={{ background: 'none', border: 'none', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}
-                    >
-                      All {currentFarm.stats.activeControllers} <ChevronRight size={12} />
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[
-                      { name: 'EC Mini Controller #01', zone: 'Venlo Bay 1', metric: '2.35 mS', count: '42 DC/h', val: 92 },
-                      { name: 'EC Mini Controller #02', zone: 'NFT Hydro A', metric: '1.65 mS', count: '18 DC/h', val: 58 },
-                      { name: 'MultiGrow Pro Hub #01', zone: 'Central Skid', metric: '16 Relays armed', count: '100% Armed', val: 98 },
-                      { name: 'IntelliDose Station #03', zone: 'Seedling Nursery', metric: '1.20 mS', count: '12 DC/h', val: 84 }
-                    ].map((ctrl, idx) => (
-                      <div key={idx}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 700, color: '#0F172A' }}>{ctrl.name}</span>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#10B981' }}>{ctrl.metric}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748B', marginBottom: '6px' }}>
-                          <span>{ctrl.zone}</span>
-                          <span>{ctrl.count}</span>
-                        </div>
-                        <div style={{ width: '100%', height: '6px', backgroundColor: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{
-                            width: `${ctrl.val}%`,
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #3B82F6 0%, #2563EB 100%)',
-                            borderRadius: '3px'
-                          }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Card 2: Dosing & Equipment Tracking */}
-                <div style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '12px',
-                  border: '1px solid #E2E8F0',
-                  padding: '20px',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Droplet size={16} color="#0F172A" />
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                        Dosing pumps & actuators
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', fontFamily: 'monospace' }}>
-                      CLOSED-LOOP OK
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {[
-                      { name: 'Acid Dosing Pump (pH Down)', rate: '350 ml/min', id: 'pump-acid' },
-                      { name: 'Nutrient Stock Pump A (NPK Base)', rate: '500 ml/min', id: 'pump-nutrient-a' },
-                      { name: 'Nutrient Stock Pump B (Micro/CalMag)', rate: '500 ml/min', id: 'pump-nutrient-b' },
-                      { name: 'Main Irrigation Delivery Solenoid', rate: '2,400 L/hr', id: 'valve-irrigation' }
-                    ].map((item, idx) => (
-                      <div key={idx} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        backgroundColor: '#F8FAFC',
-                        border: '1px solid #E2E8F0'
-                      }}>
-                        <div>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
-                            {item.name}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#64748B' }}>
-                            Flow rate: {item.rate}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#64748B' }}>
-                            IDLE
-                          </span>
-                          <button
-                            onClick={() => onTriggerCommand(item.id, 10)}
-                            style={{
-                              padding: '4px 10px',
-                              backgroundColor: '#FFFFFF',
-                              border: '1px solid #CBD5E1',
-                              borderRadius: '6px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              color: '#0F172A',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Pulse 10s
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Card 3: Crop Stress & Hotspot Heatmap */}
-                <div style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '12px',
-                  border: '1px solid #E2E8F0',
-                  padding: '20px',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Flame size={16} color="#F59E0B" />
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                        Crop stress & hotspot heatmap
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#D97706', fontFamily: 'monospace' }}>
-                      2 HOTSPOTS DETECTED
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }}>
-                    <div style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: '8px',
-                      backgroundColor: '#EFF6FF',
-                      border: '1px solid #BFDBFE'
-                    }}>
-                      <div style={{ fontSize: '11px', color: '#1E40AF', fontWeight: 700 }}>
-                        NFT Hydro Zone B
-                      </div>
-                      <div style={{ fontSize: '18px', fontWeight: 800, color: '#1E3A8A', fontFamily: 'monospace', margin: '4px 0' }}>
-                        94% Load
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#3B82F6' }}>
-                        EC drift -0.15 mS (Dosing active)
-                      </div>
-                    </div>
-
-                    <div style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: '8px',
-                      backgroundColor: '#FEF3C7',
-                      border: '1px solid #FDE68A'
-                    }}>
-                      <div style={{ fontSize: '11px', color: '#92400E', fontWeight: 700 }}>
-                        Fertigation Silo B
-                      </div>
-                      <div style={{ fontSize: '18px', fontWeight: 800, color: '#78350F', fontFamily: 'monospace', margin: '4px 0' }}>
-                        86% Load
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#D97706' }}>
-                        24% Tank capacity remaining
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '8px' }}>
-                    24-Hour Transpirational Stress Curve
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '48px', padding: '0 4px' }}>
-                    {[28, 35, 42, 68, 94, 88, 76, 62, 45, 38, 32, 30].map((h, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          flex: 1,
-                          height: `${h}%`,
-                          backgroundColor: h > 80 ? '#F59E0B' : '#3B82F6',
-                          borderRadius: '2px',
-                          transition: 'height 0.3s ease'
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
+              {/* Executive Sensor Analytics & Crop Production Forecast (Divided by Location) */}
+              <ExecutiveAnalyticsDashboard
+                farm={currentFarm}
+                onOpenControllersTab={() => setNavTab('controllers')}
+                onOpenHarvestTab={() => setNavTab('harvest')}
+              />
 
               {/* 5. Integrated SCADA Live Feeds & Telemetry (Unified with the 3D Overview) */}
               <div style={{
