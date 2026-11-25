@@ -2035,728 +2035,278 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         }}
       >
 
-      {/* 1. Top Map Toolbar with Multi-Farm Navigator & FarmVille Mode Switcher */}
-      <div
-        data-map-hud="true"
-        style={{
-          position: 'absolute',
-          top: '16px',
-          left: '20px',
-          right: '20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          zIndex: 20,
-          pointerEvents: 'none'
-        }}
-      >
-        {/* Left: Live Status Mode Indicator */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '6px 14px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '20px',
-          border: '1px solid #CBD5E1',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          pointerEvents: 'auto'
-        }}>
-          <span style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: activeTab === 'build' ? '#F59E0B' : '#10B981',
-            boxShadow: `0 0 6px ${activeTab === 'build' ? '#F59E0B' : '#10B981'}`
-          }} />
-          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
-            {activeTab === 'build' ? 'Layout Builder Active' : 'Live Sensor Monitoring'}
-          </span>
-          <span style={{ fontSize: '10px', color: '#64748B', fontFamily: 'monospace' }}>
-            ({structures.length} bays)
-          </span>
-        </div>
-
-        {/* Center: Multi-Farm Navigator Pill (Arrow Switcher directly on the Farm) */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '30px',
-          padding: '4px 16px',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-          border: '1px solid #CBD5E1',
-          pointerEvents: 'auto'
-        }}>
-          <button
-            onClick={handlePrevFarm}
-            title="Previous Farm Estate"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              color: '#0F172A',
-              padding: '4px'
-            }}
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-              <span style={{ fontSize: '12px', fontWeight: 900, color: '#0F172A' }}>
-                {currentFarm.name}
-              </span>
-              <span style={{
-                fontSize: '9px',
-                fontWeight: 800,
-                padding: '1px 5px',
-                borderRadius: '4px',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                color: '#10B981',
-                fontFamily: 'monospace'
-              }}>
-                FARM {currentFarmIdx + 1}/{FARMS_DATA.length}
-              </span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748B' }}>
-              {currentFarm.location} · {gridCols}×{gridRows} Grid · {currentFarm.stats.crop}
-            </div>
-          </div>
-
-          <button
-            onClick={handleNextFarm}
-            title="Next Farm Estate"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              color: '#0F172A',
-              padding: '4px'
-            }}
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-
-        {/* Right: Map Layers Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
-          {/* Map Layers Dropdown Button */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setIsLayersOpen(!isLayersOpen)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 12px',
-                backgroundColor: isLayersOpen ? '#0F172A' : '#FFFFFF',
-                color: isLayersOpen ? '#FFFFFF' : '#0F172A',
-                borderRadius: '8px',
-                border: '1px solid #CBD5E1',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Layers size={14} color={isLayersOpen ? '#10B981' : '#64748B'} />
-              <span>Map Layers</span>
-              <span style={{
-                fontSize: '10px',
-                fontWeight: 800,
-                fontFamily: 'monospace',
-                color: isLayersOpen ? '#34D399' : '#64748B',
-                backgroundColor: isLayersOpen ? 'rgba(16, 185, 129, 0.2)' : '#F1F5F9',
-                padding: '1px 5px',
-                borderRadius: '4px'
-              }}>
-                {Object.values(layers).filter(Boolean).length}/6
-              </span>
-              <ChevronDown size={14} color={isLayersOpen ? '#FFFFFF' : '#64748B'} style={{ transform: isLayersOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isLayersOpen && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                marginTop: '8px',
-                width: '210px',
-                backgroundColor: '#FFFFFF',
-                borderRadius: '12px',
-                border: '1px solid #E2E8F0',
-                padding: '14px',
-                boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                zIndex: 60
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #F1F5F9' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
-                    Active Overlays
-                  </span>
-                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#10B981', fontWeight: 700 }}>
-                    {Object.values(layers).filter(Boolean).length} / 6
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    { key: 'controllers', label: 'Controllers' },
-                    { key: 'sensors', label: 'EC / pH Tags' },
-                    { key: 'pumps', label: 'Dosing Pumps' },
-                    { key: 'irrigation', label: 'Irrigation Lines' },
-                    { key: 'vpdHeatmap', label: 'VPD Heatmap' },
-                    { key: 'alerts', label: 'Alert Chips' }
-                  ].map(item => (
-                    <label
-                      key={item.key}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '11px',
-                        color: '#334155',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        padding: '4px 6px',
-                        borderRadius: '6px',
-                        transition: 'background 0.1s'
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <span>{item.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={(layers as any)[item.key]}
-                        onChange={() => setLayers({ ...layers, [item.key]: !(layers as any)[item.key] })}
-                        style={{ accentColor: '#10B981', cursor: 'pointer', width: '15px', height: '15px' }}
-                      />
-                    </label>
-                  ))}
-                </div>
-
-
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 2. FarmVille Placement Status Bar (When an item is ready to drop on tiles) */}
-      {activeTab === 'build' && (activePlacingItem || movingStructureId) && (
+        {/* 1. Top Map Toolbar with Multi-Farm Navigator & FarmVille Mode Switcher */}
         <div
           data-map-hud="true"
           style={{
             position: 'absolute',
-            top: '68px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 25,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '8px 18px',
-            backgroundColor: '#0F172A',
-            color: '#FFFFFF',
-            borderRadius: '30px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-            border: '1px solid #10B981'
-          }}
-        >
-          <span style={{ fontSize: '13px' }}>
-            {movingStructureId ? '✋ Moving:' : activePlacingItem?.icon}
-          </span>
-          <span style={{ fontSize: '12px', fontWeight: 800 }}>
-            {movingStructureId
-              ? structures.find(s => s.id === movingStructureId)?.name
-              : activePlacingItem?.name}
-          </span>
-          <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.2)', padding: '2px 8px', borderRadius: '4px' }}>
-            Footprint: {placingDimensions.w} × {placingDimensions.h} Tiles
-          </span>
-
-          <button
-            onClick={() => {
-              setPlacingDimensions(prev => ({ w: prev.h, h: prev.w }));
-              playSfx('rotate');
-            }}
-            title="Press 'R' key to rotate"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 10px',
-              backgroundColor: '#1E293B',
-              color: '#FFFFFF',
-              border: '1px solid #334155',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            <RotateCw size={12} color="#10B981" />
-            Rotate (R)
-          </button>
-
-          <button
-            onClick={() => {
-              setActivePlacingItem(null);
-              setMovingStructureId(null);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              backgroundColor: 'transparent',
-              color: '#94A3B8',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            <X size={14} />
-            Cancel
-          </button>
-        </div>
-      )}
-
-
-
-      {/* 4B. Floating Pan Mode Badge (Top-Left below status pill when zoomed/expanded) */}
-      {(zoomLevel > 1 || gridCols > 14 || gridRows > 12) && (
-        <div
-          data-map-hud="true"
-          style={{
-            position: 'absolute',
-            top: '70px',
+            top: '16px',
             left: '20px',
+            right: '20px',
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '5px',
-            padding: '4px 10px',
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-            color: '#F8FAFC',
-            borderRadius: '8px',
-            fontSize: '10px',
-            fontWeight: 700,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             zIndex: 20,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap'
+            pointerEvents: 'none'
           }}
         >
-          <Move size={11} color="#10B981" />
-          <span>Drag or Right-Click to Pan</span>
-        </div>
-      )}
-
-      {/* Top-Center Floating Toast Notification (never overlaps bottom HUDs) */}
-      {saveToast && (
-        <div
-          data-map-hud="true"
-          style={{
-            position: 'absolute',
-            top: '70px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '7px 14px',
-            backgroundColor: '#10B981',
-            color: '#FFFFFF',
-            borderRadius: '8px',
-            fontSize: '12px',
-            fontWeight: 700,
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
-            zIndex: 50,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <CheckCircle2 size={14} />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* 4C. Floating Bottom-Left Camera Zoom & Reset Controls (Reset placed right beside Zoom) */}
-      <div
-        data-map-hud="true"
-        style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          zIndex: 25,
-          pointerEvents: 'auto'
-        }}
-      >
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '3px',
-          padding: '4px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '10px',
-          border: '1px solid #CBD5E1',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
-        }}>
-          <button
-            onClick={() => updateZoom(zoomLevel - 0.2)}
-            disabled={zoomLevel <= 0.65}
-            title="Zoom Out (or scroll wheel down)"
-            style={{
-              padding: '5px 7px',
-              backgroundColor: '#F8FAFC',
-              border: '1px solid #E2E8F0',
-              borderRadius: '6px',
-              cursor: zoomLevel <= 0.65 ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              opacity: zoomLevel <= 0.65 ? 0.5 : 1
-            }}
-          >
-            <ZoomOut size={14} color="#0F172A" />
-          </button>
-
-          <span
-            style={{
-              padding: '0 6px',
-              fontSize: '11px',
-              fontWeight: 800,
-              fontFamily: 'monospace',
-              color: '#0F172A',
-              minWidth: '38px',
-              textAlign: 'center',
-              userSelect: 'none'
-            }}
-          >
-            {Math.round(zoomLevel * 100)}%
-          </span>
-
-          <button
-            onClick={() => updateZoom(zoomLevel + 0.2)}
-            disabled={zoomLevel >= 2.5}
-            title="Zoom In (or scroll wheel up)"
-            style={{
-              padding: '5px 7px',
-              backgroundColor: '#F8FAFC',
-              border: '1px solid #E2E8F0',
-              borderRadius: '6px',
-              cursor: zoomLevel >= 2.5 ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              opacity: zoomLevel >= 2.5 ? 0.5 : 1
-            }}
-          >
-            <ZoomIn size={14} color="#0F172A" />
-          </button>
-        </div>
-
-        <button
-          onClick={handleResetView}
-          title="Reset Zoom (100%) & Center Camera"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '9px 10px',
-            backgroundColor: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#0F172A' : '#FFFFFF',
-            color: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#FFFFFF' : '#0F172A',
-            borderRadius: '10px',
-            border: '1px solid #CBD5E1',
-            fontSize: '11px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <RotateCcw size={13} color={zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#10B981' : '#475569'} />
-          <span>Reset</span>
-        </button>
-      </div>
-
-      {/* 5. Floating Bottom-Right Controls: Save Layout (Builder Mode only) & Builder/Exit Toggle */}
-      <div
-        data-map-hud="true"
-        style={{
-          position: 'absolute',
-          bottom: '20px',
-          right: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          zIndex: 30,
-          pointerEvents: 'auto'
-        }}
-      >
-
-        {/* Save Layout Button: Active & visible ONLY in Builder Mode */}
-        {activeTab === 'build' && (
-          <button
-            onClick={handleSaveLayout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 16px',
-              backgroundColor: hasUnsavedChanges ? '#10B981' : '#FFFFFF',
-              color: hasUnsavedChanges ? '#FFFFFF' : '#0F172A',
-              borderRadius: '8px',
-              border: hasUnsavedChanges ? 'none' : '1px solid #CBD5E1',
-              fontSize: '12px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: hasUnsavedChanges ? '0 4px 14px rgba(16, 185, 129, 0.35)' : '0 4px 12px rgba(0,0,0,0.06)',
-              transition: 'all 0.15s ease'
-            }}
-            title="Save farm layout and dispatch to edge hardware"
-          >
-            <Save size={15} color={hasUnsavedChanges ? '#FFFFFF' : '#10B981'} />
-            <span>Save Layout</span>
-            {hasUnsavedChanges && (
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#FFFFFF' }} />
-            )}
-          </button>
-        )}
-
-        {/* Builder / Exit Toggle Button */}
-        <button
-          onClick={handleToggleBuilderMode}
-          style={{
+          {/* Left: Live Status Mode Indicator */}
+          <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '9px 18px',
-            backgroundColor: activeTab === 'build' ? '#EF4444' : '#0F172A',
-            color: '#FFFFFF',
-            borderRadius: '8px',
-            border: 'none',
-            fontSize: '13px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            boxShadow: activeTab === 'build' ? '0 4px 14px rgba(239, 68, 68, 0.35)' : '0 4px 14px rgba(0,0,0,0.15)',
-            transition: 'all 0.15s ease'
-          }}
-          title={activeTab === 'build' ? 'Exit Builder mode' : 'Enter Farm Layout Builder mode'}
-        >
-          {activeTab === 'build' ? <X size={16} /> : <Hammer size={16} />}
-          <span>{activeTab === 'build' ? 'Exit' : 'Builder'}</span>
-        </button>
-      </div>
+            padding: '6px 14px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '20px',
+            border: '1px solid #CBD5E1',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            pointerEvents: 'auto'
+          }}>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: activeTab === 'build' ? '#F59E0B' : '#10B981',
+              boxShadow: `0 0 6px ${activeTab === 'build' ? '#F59E0B' : '#10B981'}`
+            }} />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
+              {activeTab === 'build' ? 'Layout Builder Active' : 'Live Sensor Monitoring'}
+            </span>
+            <span style={{ fontSize: '10px', color: '#64748B', fontFamily: 'monospace' }}>
+              ({structures.length} bays)
+            </span>
+          </div>
 
-      {/* 6A. Builder Mode Contextual Bottom Container (activeTab === 'build') */}
-      {activeTab === 'build' && (
-        <div
-          data-map-hud="true"
-          style={
-            builderContainerView === 'add_structure'
-              ? {
-                  position: 'absolute',
-                  bottom: '20px',
-                  left: '214px',
-                  right: '230px',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '14px',
-                  border: '1px solid #CBD5E1',
-                  padding: '10px 14px',
-                  boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
-                  zIndex: 25,
-                  pointerEvents: 'auto'
-                }
-              : {
-                  position: 'absolute',
-                  bottom: '20px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  maxWidth: 'calc(100% - 436px)',
-                  minWidth: '400px',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '14px',
-                  border: '1px solid #CBD5E1',
-                  padding: '12px 16px',
-                  boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
-                  zIndex: 25,
-                  pointerEvents: 'auto'
-                }
-          }
-        >
-          {/* VIEW 1: FARM LAYOUT */}
-          {builderContainerView === 'farm_layout' && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
-                    Farm Layout
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#64748B' }}>
-                    {structures.length} structures placed
-                  </span>
-                </div>
+          {/* Center: Multi-Farm Navigator Pill (Arrow Switcher directly on the Farm) */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '30px',
+            padding: '4px 16px',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+            border: '1px solid #CBD5E1',
+            pointerEvents: 'auto'
+          }}>
+            <button
+              onClick={handlePrevFarm}
+              title="Previous Farm Estate"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#0F172A',
+                padding: '4px'
+              }}
+            >
+              <ChevronLeft size={16} />
+            </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {/* Farmland Grid Width x Length steppers */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: 900, color: '#0F172A' }}>
+                  {currentFarm.name}
+                </span>
+                <span style={{
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: '#10B981',
+                  fontFamily: 'monospace'
+                }}>
+                  FARM {currentFarmIdx + 1}/{FARMS_DATA.length}
+                </span>
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748B' }}>
+                {currentFarm.location} · {gridCols}×{gridRows} Grid · {currentFarm.stats.crop}
+              </div>
+            </div>
+
+            <button
+              onClick={handleNextFarm}
+              title="Next Farm Estate"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#0F172A',
+                padding: '4px'
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          {/* Right: Map Layers Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
+            {/* Map Layers Dropdown Button */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setIsLayersOpen(!isLayersOpen)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 12px',
+                  backgroundColor: isLayersOpen ? '#0F172A' : '#FFFFFF',
+                  color: isLayersOpen ? '#FFFFFF' : '#0F172A',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Layers size={14} color={isLayersOpen ? '#10B981' : '#64748B'} />
+                <span>Map Layers</span>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  fontFamily: 'monospace',
+                  color: isLayersOpen ? '#34D399' : '#64748B',
+                  backgroundColor: isLayersOpen ? 'rgba(16, 185, 129, 0.2)' : '#F1F5F9',
+                  padding: '1px 5px',
+                  borderRadius: '4px'
+                }}>
+                  {Object.values(layers).filter(Boolean).length}/6
+                </span>
+                <ChevronDown size={14} color={isLayersOpen ? '#FFFFFF' : '#64748B'} style={{ transform: isLayersOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isLayersOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '8px',
+                  width: '210px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  padding: '14px',
+                  boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                  zIndex: 60
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #F1F5F9' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
+                      Active Overlays
+                    </span>
+                    <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#10B981', fontWeight: 700 }}>
+                      {Object.values(layers).filter(Boolean).length} / 6
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {[
+                      { key: 'controllers', label: 'Controllers' },
+                      { key: 'sensors', label: 'EC / pH Tags' },
+                      { key: 'pumps', label: 'Dosing Pumps' },
+                      { key: 'irrigation', label: 'Irrigation Lines' },
+                      { key: 'vpdHeatmap', label: 'VPD Heatmap' },
+                      { key: 'alerts', label: 'Alert Chips' }
+                    ].map(item => (
+                      <label
+                        key={item.key}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: '11px',
+                          color: '#334155',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: '4px 6px',
+                          borderRadius: '6px',
+                          transition: 'background 0.1s'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <span>{item.label}</span>
+                        <input
+                          type="checkbox"
+                          checked={(layers as any)[item.key]}
+                          onChange={() => setLayers({ ...layers, [item.key]: !(layers as any)[item.key] })}
+                          style={{ accentColor: '#10B981', cursor: 'pointer', width: '15px', height: '15px' }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Zoom Controls inside Dropdown */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    backgroundColor: '#F8FAFC',
-                    padding: '3px 8px',
-                    borderRadius: '8px',
-                    border: '1px solid #CBD5E1'
+                    justifyContent: 'space-between',
+                    marginTop: '12px',
+                    paddingTop: '10px',
+                    borderTop: '1px solid #F1F5F9'
                   }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>Grid:</span>
-
-                    {/* Width Stepper */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>W:</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>
+                      Zoom ({Math.round(zoomLevel * 100)}%):
+                    </span>
+                    <div style={{ display: 'flex', gap: '6px' }}>
                       <button
-                        onClick={() => handleGridColsChange(-1)}
-                        style={{
-                          padding: '1px 6px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #CBD5E1',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          color: '#0F172A'
-                        }}
-                        title="Decrease Farmland Grid Width"
+                        onClick={() => updateZoom(zoomLevel + 0.2)}
+                        title="Zoom In"
+                        style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                       >
-                        -
+                        <ZoomIn size={13} color="#64748B" />
                       </button>
-                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', minWidth: '18px', textAlign: 'center', color: '#0F172A' }}>
-                        {gridCols}
-                      </span>
                       <button
-                        onClick={() => handleGridColsChange(1)}
-                        style={{
-                          padding: '1px 6px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #CBD5E1',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          color: '#10B981'
-                        }}
-                        title="Increase Farmland Grid Width"
+                        onClick={() => updateZoom(zoomLevel - 0.2)}
+                        title="Zoom Out"
+                        style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                       >
-                        +
+                        <ZoomOut size={13} color="#64748B" />
                       </button>
-                    </div>
-
-                    <span style={{ color: '#94A3B8', fontWeight: 700 }}>×</span>
-
-                    {/* Length Stepper */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>L:</span>
                       <button
-                        onClick={() => handleGridRowsChange(-1)}
-                        style={{
-                          padding: '1px 6px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #CBD5E1',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          color: '#0F172A'
-                        }}
-                        title="Decrease Farmland Grid Length"
+                        onClick={handleResetView}
+                        title="Reset Zoom & Center Map"
+                        style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                       >
-                        -
-                      </button>
-                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', minWidth: '18px', textAlign: 'center', color: '#0F172A' }}>
-                        {gridRows}
-                      </span>
-                      <button
-                        onClick={() => handleGridRowsChange(1)}
-                        style={{
-                          padding: '1px 6px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #CBD5E1',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          color: '#10B981'
-                        }}
-                        title="Increase Farmland Grid Length"
-                      >
-                        +
+                        <RotateCcw size={13} color="#64748B" />
                       </button>
                     </div>
                   </div>
-
-                  {/* Add Structure Button */}
-                  <button
-                    onClick={() => {
-                      setBuilderContainerView('add_structure');
-                      playSfx('select');
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '5px 12px',
-                      backgroundColor: '#10B981',
-                      color: '#FFFFFF',
-                      borderRadius: '8px',
-                      border: 'none',
-                      fontSize: '12px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                    }}
-                  >
-                    <Plus size={14} />
-                    <span>Add Structure</span>
-                  </button>
                 </div>
-              </div>
-
-              <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748B' }}>
-                💡 Click any structure on the map to resize, rotate, move, or configure controllers & sensors.
-              </div>
+              )}
             </div>
-          )}
+          </div>
+        </div>
 
           {/* VIEW 2: ADD STRUCTURE (HORIZONTAL SIDE-BY-SIDE CATALOG) */}
           {builderContainerView === 'add_structure' && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  <span style={{ fontSize: '12px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     Add Structure
                   </span>
-                  <span style={{ fontSize: '10px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    Scroll & pick an item to drop on the grid
+                  <span style={{ fontSize: '10px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                    Pick an item to drop
                   </span>
                 </div>
 
                 {/* Back button to Farm Layout */}
                 <button
                   onClick={() => setBuilderContainerView('farm_layout')}
+                  title="Back to Farm Layout"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    padding: '4px 9px',
+                    padding: '4px 8px',
                     backgroundColor: '#F1F5F9',
                     border: '1px solid #CBD5E1',
                     borderRadius: '6px',
@@ -2769,1205 +2319,1934 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                   }}
                 >
                   <ArrowLeft size={12} />
-                  <span>Back to Farm Layout</span>
+                  <span>Back</span>
                 </button>
               </div>
 
-              {/* Horizontal Side-by-Side Structure Catalog Strip */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: '8px',
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                paddingBottom: '4px'
-              }}>
-                {catalog.map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handlePickCatalogItem(item)}
-                    style={{
-                      flex: '0 0 185px',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid #E2E8F0',
-                      backgroundColor: '#F8FAFC',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      display: 'flex',
-                      gap: '8px',
-                      alignItems: 'flex-start'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = '#10B981';
-                      e.currentTarget.style.backgroundColor = '#FFFFFF';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = '#E2E8F0';
-                      e.currentTarget.style.backgroundColor = '#F8FAFC';
-                    }}
-                  >
-                    <div style={{ fontSize: '18px', lineHeight: 1 }}>{item.icon}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.name}
-                        </span>
-                        <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'monospace', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '1px 4px', borderRadius: '3px', flexShrink: 0, marginLeft: '4px' }}>
-                          {item.wTiles}×{item.hTiles}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '9px', color: '#64748B', marginTop: '2px', lineHeight: '1.2', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {item.desc}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* VIEW 3: BUILDING INFO & CONFIG (CRUD CONTROLLERS & SENSORS + RENAME) */}
-          {builderContainerView === 'building_info' && selectedStructure && (
-            <div>
-              {/* Top Header: Clean 2-line layout so facility name, rename button & immutable type never squish */}
-              <div style={{ marginBottom: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
-                    <Cpu size={14} color="#10B981" style={{ flexShrink: 0 }} />
-                    {renamingStructureId === selectedStructure.id ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}>
-                        <input
-                          type="text"
-                          value={renameDraft}
-                          onChange={(e) => setRenameDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleCommitRename(selectedStructure.id);
-                            if (e.key === 'Escape') setRenamingStructureId(null);
-                          }}
-                          autoFocus
-                          placeholder="Enter facility name..."
-                          style={{
-                            padding: '2px 7px',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            color: '#0F172A',
-                            border: '1px solid #10B981',
-                            borderRadius: '5px',
-                            outline: 'none',
-                            width: '100%',
-                            maxWidth: '220px'
-                          }}
-                        />
-                        <button
-                          onClick={() => handleCommitRename(selectedStructure.id)}
-                          title="Save facility name"
-                          style={{ padding: '3px 5px', backgroundColor: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                        >
-                          <Check size={11} />
-                        </button>
-                        <button
-                          onClick={() => setRenamingStructureId(null)}
-                          title="Cancel rename"
-                          style={{ padding: '3px 5px', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                        >
-                          <X size={11} />
-                        </button>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {selectedStructure.name}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Back button to Farm Layout */}
-                  <button
-                    onClick={() => setBuilderContainerView('farm_layout')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '3px 8px',
-                      backgroundColor: '#F1F5F9',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      color: '#0F172A',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                  >
-                    <ArrowLeft size={12} />
-                    <span>Back to Farm Layout</span>
-                  </button>
-                </div>
-
-                {/* Second header row: Rename button, Immutable Structure Type Badge, Coordinates */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  {renamingStructureId !== selectedStructure.id && (
-                    <button
-                      onClick={() => handleStartRename(selectedStructure)}
-                      title="Rename facility (keeps structure type)"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                        padding: '2px 7px',
-                        backgroundColor: '#F8FAFC',
-                        border: '1px solid #CBD5E1',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        color: '#475569',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Pencil size={10} />
-                      <span>Rename</span>
-                    </button>
-                  )}
-                  <span
-                    title="Immutable structure type"
-                    style={{
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      color: '#065F46',
-                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.25)',
-                      padding: '1px 6px',
-                      borderRadius: '4px'
-                    }}
-                  >
-                    Type: {getStructureTypeLabel(selectedStructure.type)}
-                  </span>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B', fontFamily: 'monospace', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: '4px' }}>
-                    Pos: ({selectedStructure.tileX}, {selectedStructure.tileY})
-                  </span>
-                </div>
-              </div>
-
-              {/* Building Geometry Controls: Size W x L, Move, Rotate, Remove (NO Inspect Controller here!) */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '10px', backgroundColor: '#F8FAFC', padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                {/* Size W x L steppers */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '11px', color: '#475569', fontWeight: 800 }}>Size:</span>
-
-                  {/* Width */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>W:</span>
-                    <button
-                      onClick={() => handleResizeSelected(-1, 0)}
-                      disabled={selectedStructure.wTiles <= 1}
-                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.wTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
-                    >
-                      -
-                    </button>
-                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: '#0F172A', minWidth: '16px', textAlign: 'center' }}>
-                      {selectedStructure.wTiles}
-                    </span>
-                    <button
-                      onClick={() => handleResizeSelected(1, 0)}
-                      disabled={selectedStructure.tileX + selectedStructure.wTiles >= gridCols}
-                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileX + selectedStructure.wTiles >= gridCols ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <span style={{ color: '#CBD5E1' }}>×</span>
-
-                  {/* Length */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>L:</span>
-                    <button
-                      onClick={() => handleResizeSelected(0, -1)}
-                      disabled={selectedStructure.hTiles <= 1}
-                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.hTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
-                    >
-                      -
-                    </button>
-                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: '#0F172A', minWidth: '16px', textAlign: 'center' }}>
-                      {selectedStructure.hTiles}
-                    </span>
-                    <button
-                      onClick={() => handleResizeSelected(0, 1)}
-                      disabled={selectedStructure.tileY + selectedStructure.hTiles >= gridRows}
-                      style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileY + selectedStructure.hTiles >= gridRows ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {/* Action buttons: Move, Rotate, Remove */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <button
-                    onClick={() => handleStartMove(selectedStructure.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '3px 8px',
-                      backgroundColor: '#FFFFFF',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '5px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: '#0F172A',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Move size={11} color="#2563EB" />
-                    <span>Move</span>
-                  </button>
-
-                  <button
-                    onClick={handleRotateSelected}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '3px 8px',
-                      backgroundColor: '#FFFFFF',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '5px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: '#0F172A',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <RotateCw size={11} color="#10B981" />
-                    <span>Rotate</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      handleDeleteSelected();
-                      setBuilderContainerView('farm_layout');
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '3px 8px',
-                      backgroundColor: '#FEE2E2',
-                      border: '1px solid #FCA5A5',
-                      borderRadius: '5px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: '#B91C1C',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Trash2 size={11} />
-                    <span>Remove</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Controllers & Sensors CRUD Section */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A' }}>
-                      Assigned Controllers ({ensureControllers(selectedStructure).length})
-                    </span>
-                    <span style={{ fontSize: '10px', color: '#64748B' }}>
-                      (Multi-controller architecture)
-                    </span>
-                  </div>
-
-                  {/* + Assign Controller Dropdown */}
-                  <div style={{ position: 'relative' }}>
-                    <button
-                      onClick={() => setIsAddingControllerOpen(!isAddingControllerOpen)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '3px 8px',
-                        backgroundColor: '#0F172A',
-                        color: '#FFFFFF',
-                        borderRadius: '5px',
-                        border: 'none',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Plus size={11} />
-                      <span>Assign Controller</span>
-                    </button>
-
-                    {isAddingControllerOpen && (
-                      <div style={{
-                        position: 'absolute',
-                        right: 0,
-                        bottom: '100%',
-                        marginBottom: '4px',
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: '8px',
-                        boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
-                        border: '1px solid #CBD5E1',
-                        padding: '4px',
-                        zIndex: 30,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '2px',
-                        width: '190px'
-                      }}>
-                        {[
-                          'MultiGrow MGC-Pro 16-Ch',
-                          'Autogrow EC Mini',
-                          'IntelliDose Hub',
-                          'IntelliClimate Pro'
-                        ].map((m) => (
-                          <button
-                            key={m}
-                            onClick={() => {
-                              handleAddController(selectedStructure.id, m as any);
-                              setIsAddingControllerOpen(false);
-                            }}
-                            style={{
-                              padding: '5px 8px',
-                              backgroundColor: '#F8FAFC',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '4px',
-                              textAlign: 'left',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              color: '#0F172A',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            + {m}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* List of Controllers and their attached sensors */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                  {ensureControllers(selectedStructure).map((ctrl) => (
-                    <div
-                      key={ctrl.id}
-                      style={{
-                        padding: '6px 8px',
-                        backgroundColor: '#F8FAFC',
-                        borderRadius: '6px',
-                        border: '1px solid #E2E8F0'
-                      }}
-                    >
-                      {/* Controller Row */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A' }}>
-                            {ctrl.model}
-                          </span>
-                          <span style={{ fontSize: '9px', fontFamily: 'monospace', color: '#64748B' }}>
-                            [{ctrl.serial}]
-                          </span>
-                          <span style={{ fontSize: '9px', color: '#2563EB', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.1)', padding: '1px 4px', borderRadius: '3px' }}>
-                            {(ctrl.sensors || []).length} sensors
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {/* Add Sensor to this controller */}
-                          <div style={{ display: 'flex', gap: '2px' }}>
-                            {(['ec', 'ph', 'vpd', 'vwc', 'temp'] as AttachedSensor['type'][]).map(stype => (
-                              <button
-                                key={stype}
-                                onClick={() => handleAddSensor(selectedStructure.id, ctrl.id || ctrl.serial, stype)}
-                                title={`Attach ${stype.toUpperCase()} sensor to ${ctrl.model}`}
-                                style={{
-                                  padding: '1px 4px',
-                                  backgroundColor: '#FFFFFF',
-                                  border: '1px solid #CBD5E1',
-                                  borderRadius: '3px',
-                                  fontSize: '9px',
-                                  fontWeight: 800,
-                                  color: '#475569',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                +{stype.toUpperCase()}
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Delete Controller Button */}
-                          <button
-                            onClick={() => handleRemoveController(selectedStructure.id, ctrl.id || ctrl.serial)}
-                            title="Remove Controller"
-                            style={{
-                              padding: '2px 4px',
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              color: '#94A3B8',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <Trash2 size={11} color="#EF4444" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Attached Sensors Chips */}
-                      {ctrl.sensors && ctrl.sensors.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
-                          {ctrl.sensors.map((sens) => (
-                            <div
-                              key={sens.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                padding: '1px 5px',
-                                backgroundColor: '#FFFFFF',
-                                borderRadius: '4px',
-                                border: '1px solid #CBD5E1',
-                                fontSize: '9px'
-                              }}
-                            >
-                              <span style={{ fontWeight: 700, color: '#0F172A' }}>
-                                {sens.name.split(' ')[0]} ({sens.pin}):
-                              </span>
-                              <span style={{ fontWeight: 800, fontFamily: 'monospace', color: '#10B981' }}>
-                                {sens.value} {sens.unit}
-                              </span>
-                              <button
-                                onClick={() => handleRemoveSensor(selectedStructure.id, ctrl.id || ctrl.serial, sens.id)}
-                                style={{
-                                  border: 'none',
-                                  background: 'none',
-                                  color: '#94A3B8',
-                                  cursor: 'pointer',
-                                  padding: 0,
-                                  display: 'flex',
-                                  alignItems: 'center'
-                                }}
-                                title="Detach sensor"
-                              >
-                                <X size={9} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 6B. Live Reading Sensor Mode Telemetry Bar for Selected Structure (activeTab === 'view') - CENTERED */}
-      {activeTab === 'view' && selectedStructure && (
-        <div
-          data-map-hud="true"
-          style={{
-            position: 'absolute',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            maxWidth: 'calc(100% - 280px)',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
-            border: '1px solid #CBD5E1',
-            padding: '10px 20px',
-            boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
-            zIndex: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '6px',
-            pointerEvents: 'auto',
-            textAlign: 'center'
-          }}
-        >
-          {/* Facility Name, Structure Type Badge & Hardware Badge - CENTERED */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <Cpu size={14} color="#10B981" />
-            <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
-              {selectedStructure.name}
-            </span>
-            <span style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              padding: '1px 6px',
-              borderRadius: '4px',
-              backgroundColor: '#F1F5F9',
-              color: '#475569',
-              flexShrink: 0
-            }}>
-              {getStructureTypeLabel(selectedStructure.type)}
-            </span>
-            <span style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              fontFamily: 'monospace',
-              padding: '1px 6px',
-              borderRadius: '4px',
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              color: '#10B981',
-              flexShrink: 0
-            }}>
-              {selectedStructure.controller.model}
-            </span>
-          </div>
-
-          {/* Real-time Telemetry Metrics - CENTERED */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '11px', color: '#64748B', flexWrap: 'wrap' }}>
-            <span>Serial: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.serial}</strong></span>
-            <span>Wi-Fi: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.rssi} dBm</strong></span>
-            <span>EC: <strong style={{ color: '#10B981', fontFamily: 'monospace' }}>{selectedStructure.metrics.ec.toFixed(2)} mS</strong></span>
-            <span>pH: <strong style={{ color: '#2563EB', fontFamily: 'monospace' }}>{selectedStructure.metrics.ph.toFixed(2)}</strong></span>
-            <span>VPD: <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>{selectedStructure.metrics.vpd.toFixed(2)} kPa</strong></span>
-          </div>
-
-          {/* Inspect Controller Button - CENTERED */}
-          <button
-            onClick={() => {
-              setIsHardwareModalOpen(true);
-              playSfx('select');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '5px 16px',
-              backgroundColor: '#0F172A',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(15,23,42,0.15)',
-              marginTop: '2px'
-            }}
-          >
-            <Sliders size={12} color="#10B981" />
-            <span>Inspect Controller</span>
-          </button>
-        </div>
-      )}
-
-      {/* 7. Central SVG 3D Isometric Canvas */}
-      <svg
-        ref={svgRef}
-        viewBox="0 0 1080 620"
-        onMouseMove={handleSvgMouseMove}
-        onClick={() => {
-          if (suppressClickRef.current) return;
-          if (hoveredTile && (activePlacingItem || movingStructureId)) {
-            handleTileClick(hoveredTile.x, hoveredTile.y);
-          }
-        }}
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'block',
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
-          transformOrigin: 'center center',
-          transition: isPanning ? 'none' : 'transform 0.15s ease-out'
-        }}
-      >
-        <defs>
-          <linearGradient id="siloGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#CBD5E1" />
-            <stop offset="50%" stopColor="#FFFFFF" />
-            <stop offset="100%" stopColor="#94A3B8" />
-          </linearGradient>
-        </defs>
-
-        {renderGroundSlab()}
-
-        {/* Concrete Access Roadway */}
-        <g id="access-road">
-          {Array.from({ length: gridCols }).map((_, rx) => {
-            const pA = tileToScreen(rx, 4, 0.5, gridCols, gridRows);
-            const pB = tileToScreen(rx + 1, 4, 0.5, gridCols, gridRows);
-            const pC = tileToScreen(rx + 1, 5, 0.5, gridCols, gridRows);
-            const pD = tileToScreen(rx, 5, 0.5, gridCols, gridRows);
-            return (
-              <polygon
-                key={`road-${rx}`}
-                points={`${ptStr(pA)} ${ptStr(pB)} ${ptStr(pC)} ${ptStr(pD)}`}
-                fill="#E2E8F0"
-                stroke="#CBD5E1"
-                strokeWidth="0.5"
-              />
-            );
-          })}
-          {/* Dashed Center Road Divider */}
-          {Array.from({ length: gridCols }).map((_, rx) => {
-            const pMidA = tileToScreen(rx + 0.2, 4.5, 0.6, gridCols, gridRows);
-            const pMidB = tileToScreen(rx + 0.8, 4.5, 0.6, gridCols, gridRows);
-            return (
-              <line
-                key={`road-stripe-${rx}`}
-                x1={pMidA[0]}
-                y1={pMidA[1]}
-                x2={pMidB[0]}
-                y2={pMidB[1]}
-                stroke="#FFFFFF"
-                strokeWidth="1.5"
-                strokeDasharray="4,3"
-              />
-            );
-          })}
-        </g>
-
-        {/* Docked Delivery Trucks at Packhouse (WarehouseOS Style) */}
-        {renderDeliveryTruck('truck-1', 4.3, 6.2)}
-        {renderDeliveryTruck('truck-2', 4.3, 7.6)}
-
-        {/* Ornamental Perimeter Trees (WarehouseOS Style) */}
-        {renderTree('tree-1', 0.1, 0.1)}
-        {renderTree('tree-2', gridCols - 0.8, 0.1)}
-        {renderTree('tree-3', gridCols - 0.8, gridRows - 0.9)}
-        {renderTree('tree-4', 0.1, 4.8)}
-
-        {/* Render all Farm Structures */}
-        {structures.map(struct => {
-          if (struct.type === 'greenhouse' || struct.type === 'polyhouse') return renderGreenhouse(struct);
-          if (struct.type === 'beds') return renderGutterBeds(struct);
-          if (struct.type === 'silos' || struct.type === 'water_tank') return renderSilos(struct);
-          if (struct.type === 'headhouse') return renderHeadhouse(struct);
-          if (struct.type === 'controller_station') return renderControllerStation(struct);
-          return null;
-        })}
-      </svg>
-
-      {/* 8. Interactive Hover Tooltip over Farm Buildings & Controller Nodes */}
-      {hoveredStructure && !activePlacingItem && !movingStructureId && !isPanning && (() => {
-        const [hx, hy] = tileToScreen(
-          hoveredStructure.tileX + hoveredStructure.wTiles / 2,
-          hoveredStructure.tileY,
-          50,
-          gridCols,
-          gridRows
-        );
-        let domX = hx;
-        let domY = hy;
-        const svg = svgRef.current;
-        const containerRect = contentAreaRef.current?.getBoundingClientRect();
-        const ctm = svg?.getScreenCTM();
-        if (svg && ctm && containerRect) {
-          const pt = svg.createSVGPoint();
-          pt.x = hx;
-          pt.y = hy;
-          const screenPt = pt.matrixTransform(ctm);
-          domX = screenPt.x - containerRect.left;
-          domY = screenPt.y - containerRect.top;
-        }
-        const maxDomX = (containerRect?.width || 900) - 135;
-        const isNearTop = domY < 180;
-        const clampedX = Math.min(Math.max(135, domX), maxDomX);
-
-        return (
-          <div
-            style={{
-              position: 'absolute',
-              left: `${clampedX}px`,
-              top: isNearTop ? `${Math.max(70, domY + 24)}px` : `${Math.max(70, domY - 12)}px`,
-              transform: isNearTop ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-              backgroundColor: '#0F172A',
-              color: '#FFFFFF',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.4)',
-              border: '1px solid #10B981',
-              zIndex: 45,
-              pointerEvents: 'none',
-              width: '240px',
-              transition: 'left 0.1s ease-out, top 0.1s ease-out'
-            }}
-          >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #334155', paddingBottom: '6px' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#FFFFFF' }}>{hoveredStructure.name}</div>
-                <div style={{ fontSize: '10px', color: '#94A3B8' }}>{getStructureTypeLabel(hoveredStructure.type)} · {hoveredStructure.crop}</div>
-              </div>
-              <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
-                {hoveredStructure.controller.status}
-              </span>
-            </div>
-
-            {/* Hardware & WiFi */}
-            <div style={{ fontSize: '11px', color: '#CBD5E1', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#34D399', marginBottom: '2px' }}>
-                <Cpu size={12} />
-                <span>{hoveredStructure.controller.model}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: '#94A3B8' }}>
-                <span>📶 {hoveredStructure.controller.wifiSSID}</span>
-                <span style={{ color: '#34D399', fontFamily: 'monospace' }}>{hoveredStructure.controller.rssi} dBm (95%)</span>
-              </div>
-            </div>
-
-            {/* Live Sensor Metrics Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', backgroundColor: '#1E293B', padding: '6px', borderRadius: '6px', marginBottom: '8px' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '9px', color: '#94A3B8' }}>LIVE EC</div>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: '#34D399', fontFamily: 'monospace' }}>{hoveredStructure.metrics.ec.toFixed(2)}</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '9px', color: '#94A3B8' }}>LIVE pH</div>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: '#60A5FA', fontFamily: 'monospace' }}>{hoveredStructure.metrics.ph.toFixed(2)}</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '9px', color: '#94A3B8' }}>VPD</div>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: '#FBBF24', fontFamily: 'monospace' }}>{hoveredStructure.metrics.vpd.toFixed(2)}k</div>
-              </div>
-            </div>
-
-            {/* Dose Velocity */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#CBD5E1' }}>
-              <span>Dose Velocity: <strong style={{ color: '#34D399' }}>{hoveredStructure.controller.doseCountHour} DC/h</strong></span>
-              <span>Total: <strong style={{ color: '#93C5FD' }}>{hoveredStructure.controller.doseCountTotal} DCT</strong></span>
-            </div>
-          </div>
-        );
-      })()}
-      </div> {/* End Main Content Area (~80%) */}
-
-      {/* 8. Docked Full-Height Facilities Submenu Panel (~20%, 100% height from top to bottom) */}
-      <div style={{
-        width: '260px',
-        minWidth: '260px',
-        height: '100%',
-        backgroundColor: '#FFFFFF',
-        display: 'flex',
-        flexDirection: 'column',
-        borderLeft: facilitiesPosition === 'right' ? '1px solid #E2E8F0' : 'none',
-        borderRight: facilitiesPosition === 'left' ? '1px solid #E2E8F0' : 'none',
-        zIndex: 10,
-        boxShadow: facilitiesPosition === 'right' ? '-4px 0 15px rgba(0,0,0,0.02)' : '4px 0 15px rgba(0,0,0,0.02)'
-      }}>
-        {/* Submenu Header with Dock Left/Right Switcher */}
-        <div style={{
-          padding: '16px 16px 12px 16px',
-          borderBottom: '1px solid #F1F5F9',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '6px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
-              Facilities · {currentFarm.name.split(' ')[0]}
-            </span>
             <button
-              onClick={() => setFacilitiesPosition(p => p === 'right' ? 'left' : 'right')}
-              title={`Dock Facilities to ${facilitiesPosition === 'right' ? 'Left' : 'Right'}`}
+              onClick={() => {
+                setActivePlacingItem(null);
+                setMovingStructureId(null);
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                padding: '3px 7px',
-                backgroundColor: '#F8FAFC',
-                border: '1px solid #CBD5E1',
-                borderRadius: '4px',
-                fontSize: '10px',
-                fontWeight: 700,
-                color: '#475569',
+                padding: '4px 8px',
+                backgroundColor: 'transparent',
+                color: '#94A3B8',
+                border: 'none',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease'
+                fontSize: '11px'
               }}
             >
-              <ArrowLeftRight size={11} />
-              <span>{facilitiesPosition === 'right' ? 'Dock Left' : 'Dock Right'}</span>
+              <X size={14} />
+              Cancel
             </button>
           </div>
-          <div style={{ fontSize: '11px', color: '#64748B' }}>
-            {structures.length} active bays · {currentFarm.stats.status}
-          </div>
-        </div>
+        )}
 
-        {/* Scrollable List of Farm Facilities */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '12px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          {structures.map(struct => {
-            const isSel = selectedId === struct.id;
-            const isAttn = struct.controller.status === 'ATTENTION';
 
-            return (
-              <div
-                key={struct.id}
-                onClick={() => handleStructureClick(struct)}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  backgroundColor: isSel ? '#F1F5F9' : '#FFFFFF',
-                  border: `1px solid ${isSel ? '#10B981' : '#E2E8F0'}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: isSel ? '0 2px 8px rgba(16,185,129,0.12)' : 'none'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                  {renamingStructureId === struct.id ? (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}
-                    >
-                      <input
-                        type="text"
-                        value={renameDraft}
-                        onChange={(e) => setRenameDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleCommitRename(struct.id);
-                          if (e.key === 'Escape') setRenamingStructureId(null);
-                        }}
-                        autoFocus
-                        style={{
-                          padding: '2px 6px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          color: '#0F172A',
-                          border: '1px solid #10B981',
-                          borderRadius: '4px',
-                          outline: 'none',
-                          width: '100%',
-                          minWidth: 0
-                        }}
-                      />
-                      <button
-                        onClick={() => handleCommitRename(struct.id)}
-                        title="Save name"
-                        style={{ padding: '2px 4px', backgroundColor: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                      >
-                        <Check size={10} />
-                      </button>
-                      <button
-                        onClick={() => setRenamingStructureId(null)}
-                        title="Cancel"
-                        style={{ padding: '2px 4px', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
-                        <div style={{
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '50%',
-                          backgroundColor: isAttn ? '#F59E0B' : '#10B981',
-                          flexShrink: 0
-                        }} />
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {struct.name}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartRename(struct);
-                          }}
-                          title="Rename facility (keeps structure type)"
-                          style={{
-                            padding: '2px',
-                            backgroundColor: 'transparent',
-                            border: 'none',
-                            color: '#94A3B8',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}
-                        >
-                          <Pencil size={10} />
-                        </button>
-                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: isAttn ? '#F59E0B' : '#10B981' }}>
-                          {struct.metrics.ec.toFixed(1)} mS
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '10px', color: '#64748B', gap: '6px' }}>
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {getStructureTypeLabel(struct.type)} · {struct.crop.split('(')[0].trim()}
-                  </span>
-                  <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{struct.controller.doseCountHour} DC/h</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
+            )}
+    </div>
+  )
+}
 
-      {/* 9. Unsaved Changes Prompt Confirmation Modal */}
-      {isExitPromptOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(3px)',
+{/* 4C. Floating Bottom-Left Camera Zoom Pill */ }
+<div
+  data-map-hud="true"
+  style={{
+    position: 'absolute',
+    bottom: '20px',
+    left: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px',
+    backgroundColor: '#FFFFFF',
+    borderRadius: '10px',
+    border: '1px solid #CBD5E1',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+    zIndex: 25,
+    pointerEvents: 'auto'
+  }}
+>
+  <button
+    onClick={() => updateZoom(zoomLevel - 0.2)}
+    disabled={zoomLevel <= 0.65}
+    title="Zoom Out (or scroll wheel down)"
+    style={{
+      padding: '5px 7px',
+      backgroundColor: '#F8FAFC',
+      border: '1px solid #E2E8F0',
+      borderRadius: '6px',
+      cursor: zoomLevel <= 0.65 ? 'not-allowed' : 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      opacity: zoomLevel <= 0.65 ? 0.5 : 1
+    }}
+  >
+    <ZoomOut size={14} color="#0F172A" />
+  </button>
+
+  <button
+    onClick={handleResetView}
+    title="Reset Zoom (100%) & Center Camera"
+    style={{
+      padding: '4px 8px',
+      backgroundColor: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#F1F5F9' : 'transparent',
+      border: 'none',
+      borderRadius: '6px',
+      fontSize: '11px',
+      fontWeight: 800,
+      fontFamily: 'monospace',
+      color: '#0F172A',
+      cursor: 'pointer',
+      minWidth: '46px',
+      textAlign: 'center'
+    }}
+  >
+    {Math.round(zoomLevel * 100)}%
+  </button>
+
+  <button
+    onClick={() => updateZoom(zoomLevel + 0.2)}
+    disabled={zoomLevel >= 2.5}
+    title="Zoom In (or scroll wheel up)"
+    style={{
+      padding: '5px 7px',
+      backgroundColor: '#F8FAFC',
+      border: '1px solid #E2E8F0',
+      borderRadius: '6px',
+      cursor: zoomLevel >= 2.5 ? 'not-allowed' : 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      opacity: zoomLevel >= 2.5 ? 0.5 : 1
+    }}
+  >
+    <ZoomIn size={14} color="#0F172A" />
+  </button>
+</div>
+
+{/* 5. Floating Bottom-Right Controls: Save Layout (Builder Mode only) & Builder/Exit Toggle */ }
+<div
+  data-map-hud="true"
+  style={{
+    position: 'absolute',
+    bottom: '20px',
+    right: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    zIndex: 30,
+    pointerEvents: 'auto'
+  }}
+>
+  {saveToast && (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '8px 14px',
+      backgroundColor: '#10B981',
+      color: '#FFFFFF',
+      borderRadius: '8px',
+      fontSize: '12px',
+      fontWeight: 700,
+      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+    }}>
+      <CheckCircle2 size={14} />
+      {toastMessage}
+    </div>
+  )}
+
+  {/* 4C. Floating Bottom-Left Camera Zoom & Reset Controls (Reset placed right beside Zoom) */}
+  <div
+    data-map-hud="true"
+    style={{
+      position: 'absolute',
+      bottom: '20px',
+      left: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      zIndex: 25,
+      pointerEvents: 'auto'
+    }}
+  >
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '3px',
+      padding: '4px',
+      backgroundColor: '#FFFFFF',
+      borderRadius: '10px',
+      border: '1px solid #CBD5E1',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+    }}>
+      <button
+        onClick={() => updateZoom(zoomLevel - 0.2)}
+        disabled={zoomLevel <= 0.65}
+        title="Zoom Out (or scroll wheel down)"
+        style={{
+          padding: '5px 7px',
+          backgroundColor: '#F8FAFC',
+          border: '1px solid #E2E8F0',
+          borderRadius: '6px',
+          cursor: zoomLevel <= 0.65 ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 70,
-          padding: '20px'
-        }}>
-          <div style={{
+          opacity: zoomLevel <= 0.65 ? 0.5 : 1
+        }}
+      >
+        <ZoomOut size={14} color="#0F172A" />
+      </button>
+
+      <span
+        style={{
+          padding: '0 6px',
+          fontSize: '11px',
+          fontWeight: 800,
+          fontFamily: 'monospace',
+          color: '#0F172A',
+          minWidth: '38px',
+          textAlign: 'center',
+          userSelect: 'none'
+        }}
+      >
+        {Math.round(zoomLevel * 100)}%
+      </span>
+
+      <button
+        onClick={() => updateZoom(zoomLevel + 0.2)}
+        disabled={zoomLevel >= 2.5}
+        title="Zoom In (or scroll wheel up)"
+        style={{
+          padding: '5px 7px',
+          backgroundColor: '#F8FAFC',
+          border: '1px solid #E2E8F0',
+          borderRadius: '6px',
+          cursor: zoomLevel >= 2.5 ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          opacity: zoomLevel >= 2.5 ? 0.5 : 1
+        }}
+      >
+        <ZoomIn size={14} color="#0F172A" />
+      </button>
+    </div>
+
+    <button
+      onClick={handleResetView}
+      title="Reset Zoom (100%) & Center Camera"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '9px 10px',
+        backgroundColor: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#0F172A' : '#FFFFFF',
+        color: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#FFFFFF' : '#0F172A',
+        borderRadius: '10px',
+        border: '1px solid #CBD5E1',
+        fontSize: '11px',
+        fontWeight: 800,
+        cursor: 'pointer',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+        transition: 'all 0.15s ease'
+      }}
+    >
+      <RotateCcw size={13} color={zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#10B981' : '#475569'} />
+      <span>Reset</span>
+    </button>
+  </div>
+
+  {/* 5. Floating Bottom-Right Controls: Save Layout (Builder Mode only) & Builder/Exit Toggle */}
+  <div
+    data-map-hud="true"
+    style={{
+      position: 'absolute',
+      bottom: '20px',
+      right: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      zIndex: 30,
+      pointerEvents: 'auto'
+    }}
+  >
+    {saveToast && (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '8px 14px',
+        backgroundColor: '#10B981',
+        color: '#FFFFFF',
+        borderRadius: '8px',
+        fontSize: '12px',
+        fontWeight: 700,
+        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+      }}>
+        <CheckCircle2 size={14} />
+        {toastMessage}
+      </div>
+    )}
+
+    {/* Save Layout Button: Active & visible ONLY in Builder Mode */}
+    {activeTab === 'build' && (
+      <button
+        onClick={handleToggleBuilderMode}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '9px 18px',
+          backgroundColor: activeTab === 'build' ? '#EF4444' : '#0F172A',
+          color: '#FFFFFF',
+          borderRadius: '8px',
+          border: 'none',
+          fontSize: '13px',
+          fontWeight: 800,
+          cursor: 'pointer',
+          boxShadow: activeTab === 'build' ? '0 4px 14px rgba(239, 68, 68, 0.35)' : '0 4px 14px rgba(0,0,0,0.15)',
+          transition: 'all 0.15s ease'
+        }}
+        title={activeTab === 'build' ? 'Exit Builder mode' : 'Enter Farm Layout Builder mode'}
+      >
+        {activeTab === 'build' ? <X size={16} /> : <Hammer size={16} />}
+        <span>{activeTab === 'build' ? 'Exit' : 'Builder'}</span>
+      </button>
+        </div>
+
+  {/* Builder / Exit Toggle Button */}
+  <button
+    onClick={handleToggleBuilderMode}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '9px 18px',
+      backgroundColor: activeTab === 'build' ? '#EF4444' : '#0F172A',
+      color: '#FFFFFF',
+      borderRadius: '8px',
+      border: 'none',
+      fontSize: '13px',
+      fontWeight: 800,
+      cursor: 'pointer',
+      boxShadow: activeTab === 'build' ? '0 4px 14px rgba(239, 68, 68, 0.35)' : '0 4px 14px rgba(0,0,0,0.15)',
+      transition: 'all 0.15s ease'
+    }}
+    title={activeTab === 'build' ? 'Exit Builder mode' : 'Enter Farm Layout Builder mode'}
+  >
+    {activeTab === 'build' ? <X size={16} /> : <Hammer size={16} />}
+    <span>{activeTab === 'build' ? 'Exit' : 'Builder'}</span>
+  </button>
+</div>
+
+{/* 6A. Builder Mode Contextual Bottom Container (activeTab === 'build') */ }
+{
+  activeTab === 'build' && (
+    <div
+      data-map-hud="true"
+      style={
+        builderContainerView === 'add_structure'
+          ? {
+            position: 'absolute',
+            bottom: '20px',
+            left: '218px',
+            right: '234px',
             backgroundColor: '#FFFFFF',
             borderRadius: '14px',
-            maxWidth: '440px',
-            width: '100%',
-            padding: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             border: '1px solid #CBD5E1',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              backgroundColor: '#FEF3C7',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 14px auto'
-            }}>
-              <AlertTriangle size={24} color="#D97706" />
+            padding: '10px 14px',
+            boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+            zIndex: 25,
+            pointerEvents: 'auto'
+          }
+          : {
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: 'calc(100% - 440px)',
+            minWidth: '380px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '14px',
+            border: '1px solid #CBD5E1',
+            padding: '12px 18px',
+            boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+            zIndex: 25,
+            pointerEvents: 'auto'
+          }
+      }
+    >
+      {/* VIEW 1: FARM LAYOUT */}
+      {builderContainerView === 'farm_layout' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                Farm Layout
+              </span>
+              <span style={{ fontSize: '11px', color: '#64748B' }}>
+                {structures.length} structures placed
+              </span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 900, color: '#0F172A', marginBottom: '8px' }}>
-              Unsaved Layout Changes
-            </div>
-            <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5', marginBottom: '20px' }}>
-              You have modified the farm layout in Builder Mode. Would you like to save your changes before exiting to Live Sensor Monitoring?
-            </div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-              <button
-                onClick={() => {
-                  handleSaveLayout();
-                  exitBuilderMode();
-                }}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#10B981',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  cursor: 'pointer',
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* Farmland Grid Width x Length steppers */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#F8FAFC',
+                padding: '3px 8px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1'
+              }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>Grid:</span>
+
+                {/* Width Stepper */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                  <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>W:</span>
+                  <button
+                    onClick={() => handleGridColsChange(-1)}
+                    style={{
+                      padding: '1px 6px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      color: '#0F172A'
+                    }}
+                    title="Decrease Farmland Grid Width"
+                  >
+                    -
+                  </button>
+                  <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', minWidth: '18px', textAlign: 'center', color: '#0F172A' }}>
+                    {gridCols}
+                  </span>
+                  <button
+                    onClick={() => handleGridColsChange(1)}
+                    style={{
+                      padding: '1px 6px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      color: '#10B981'
+                    }}
+                    title="Increase Farmland Grid Width"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <span style={{ color: '#94A3B8', fontWeight: 700 }}>×</span>
+
+                {/* Length Stepper */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                  <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>L:</span>
+                  <button
+                    onClick={() => handleGridRowsChange(-1)}
+                    style={{
+                      padding: '1px 6px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      color: '#0F172A'
+                    }}
+                    title="Decrease Farmland Grid Length"
+                  >
+                    -
+                  </button>
+                  <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', minWidth: '18px', textAlign: 'center', color: '#0F172A' }}>
+                    {gridRows}
+                  </span>
+                  <button
+                    onClick={() => handleGridRowsChange(1)}
+                    style={{
+                      padding: '1px 6px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      color: '#10B981'
+                    }}
+                    title="Increase Farmland Grid Length"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* Farmland Grid Width x Length steppers */}
+                <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <Save size={13} />
-                <span>Save & Exit</span>
-              </button>
-              <button
-                onClick={() => {
-                  exitBuilderMode();
-                }}
-                style={{
-                  padding: '8px 14px',
-                  backgroundColor: '#FEE2E2',
-                  color: '#DC2626',
-                  border: '1px solid #FCA5A5',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                Discard & Exit
-              </button>
-              <button
-                onClick={() => setIsExitPromptOpen(false)}
-                style={{
-                  padding: '8px 14px',
-                  backgroundColor: '#F1F5F9',
-                  color: '#475569',
-                  border: '1px solid #CBD5E1',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                Keep Editing
-              </button>
+                  gap: '6px',
+                  backgroundColor: '#F8FAFC',
+                  padding: '3px 8px',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1'
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>Grid:</span>
+
+                  {/* Width Stepper */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>W:</span>
+                    <button
+                      onClick={() => handleGridColsChange(-1)}
+                      style={{
+                        padding: '1px 6px',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        color: '#0F172A'
+                      }}
+                      title="Decrease Farmland Grid Width"
+                    >
+                      -
+                    </button>
+                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', minWidth: '18px', textAlign: 'center', color: '#0F172A' }}>
+                      {gridCols}
+                    </span>
+                    <button
+                      onClick={() => handleGridColsChange(1)}
+                      style={{
+                        padding: '1px 6px',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        color: '#10B981'
+                      }}
+                      title="Increase Farmland Grid Width"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* VIEW 2: ADD STRUCTURE (HORIZONTAL SIDE-BY-SIDE CATALOG) */}
+                  {builderContainerView === 'add_structure' && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                          <span style={{ fontSize: '12px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                            Add Structure
+                          </span>
+                          <span style={{ fontSize: '10px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            Scroll & pick an item to drop on the grid
+                          </span>
+                        </div>
+
+                        {/* Back button to Farm Layout */}
+                        <button
+                          onClick={() => setBuilderContainerView('farm_layout')}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 9px',
+                            backgroundColor: '#F1F5F9',
+                            border: '1px solid #CBD5E1',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            color: '#0F172A',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}
+                        >
+                          <ArrowLeft size={12} />
+                          <span>Back to Farm Layout</span>
+                        </button>
+                      </div>
+
+                      {/* Horizontal Side-by-Side Structure Catalog Strip */}
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        gap: '8px',
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        paddingBottom: '4px'
+                      }}>
+                        {catalog.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => handlePickCatalogItem(item)}
+                            style={{
+                              flex: '0 0 185px',
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid #E2E8F0',
+                              backgroundColor: '#F8FAFC',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              display: 'flex',
+                              gap: '8px',
+                              alignItems: 'flex-start'
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.borderColor = '#10B981';
+                              e.currentTarget.style.backgroundColor = '#FFFFFF';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = '#E2E8F0';
+                              e.currentTarget.style.backgroundColor = '#F8FAFC';
+                            }}
+                          >
+                            <div style={{ fontSize: '18px', lineHeight: 1 }}>{item.icon}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {item.name}
+                                </span>
+                                <button
+                                  onClick={() => handleGridRowsChange(1)}
+                                  style={{
+                                    padding: '1px 6px',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #CBD5E1',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    color: '#10B981'
+                                  }}
+                                  title="Increase Farmland Grid Length"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* VIEW 3: BUILDING INFO & CONFIG (CRUD CONTROLLERS & SENSORS + RENAME) */}
+                            {builderContainerView === 'building_info' && selectedStructure && (
+                              <div>
+                                {/* Top Header: Editable Facility Name, Structure Type Badge, Coordinates, Back button */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', gap: '8px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                                    <Cpu size={14} color="#10B981" style={{ flexShrink: 0 }} />
+                                    {renamingStructureId === selectedStructure.id ? (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}>
+                                        <input
+                                          type="text"
+                                          value={renameDraft}
+                                          onChange={(e) => setRenameDraft(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleCommitRename(selectedStructure.id);
+                                            if (e.key === 'Escape') setRenamingStructureId(null);
+                                          }}
+                                          autoFocus
+                                          placeholder="Enter facility name..."
+                                          style={{
+                                            padding: '2px 7px',
+                                            fontSize: '12px',
+                                            fontWeight: 700,
+                                            color: '#0F172A',
+                                            border: '1px solid #10B981',
+                                            borderRadius: '5px',
+                                            outline: 'none',
+                                            width: '100%',
+                                            maxWidth: '200px'
+                                          }}
+                                        />
+                                        <button
+                                          onClick={() => handleCommitRename(selectedStructure.id)}
+                                          title="Save facility name"
+                                          style={{ padding: '3px 5px', backgroundColor: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                        >
+                                          <Check size={11} />
+                                        </button>
+                                        <button
+                                          onClick={() => setRenamingStructureId(null)}
+                                          title="Cancel rename"
+                                          style={{ padding: '3px 5px', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                        >
+                                          <X size={11} />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          {selectedStructure.name}
+                                        </span>
+                                        <button
+                                          onClick={() => handleStartRename(selectedStructure)}
+                                          title="Rename facility (keeps structure type)"
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                            padding: '2px 6px',
+                                            backgroundColor: '#F8FAFC',
+                                            border: '1px solid #CBD5E1',
+                                            borderRadius: '4px',
+                                            fontSize: '10px',
+                                            fontWeight: 700,
+                                            color: '#475569',
+                                            cursor: 'pointer',
+                                            flexShrink: 0
+                                          }}
+                                        >
+                                          <Pencil size={10} />
+                                          <span>Rename</span>
+                                        </button>
+                                      </>
+                                    )}
+                                    <span
+                                      title="Immutable structure type"
+                                      style={{
+                                        fontSize: '10px',
+                                        fontWeight: 700,
+                                        color: '#065F46',
+                                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        whiteSpace: 'nowrap',
+                                        flexShrink: 0
+                                      }}
+                                    >
+                                      {getStructureTypeLabel(selectedStructure.type)}
+                                    </span>
+                                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B', fontFamily: 'monospace', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: '4px', flexShrink: 0 }}>
+                                      ({selectedStructure.tileX}, {selectedStructure.tileY})
+                                    </span>
+                                  </div>
+
+                                  {/* Back button to Farm Layout */}
+                                  <button
+                                    onClick={() => setBuilderContainerView('farm_layout')}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '3px 8px',
+                                      backgroundColor: '#F1F5F9',
+                                      border: '1px solid #CBD5E1',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 800,
+                                      color: '#0F172A',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    <ArrowLeft size={12} />
+                                    <span>Back to Farm Layout</span>
+                                  </button>
+                                </div>
+
+                                {/* Building Geometry Controls: Size W x L, Move, Rotate, Remove (NO Inspect Controller here!) */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '10px', backgroundColor: '#F8FAFC', padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                  {/* Size W x L steppers */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', color: '#475569', fontWeight: 800 }}>Size:</span>
+
+                                    {/* Width */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                      <span style={{ fontSize: '10px', color: '#94A3B8' }}>W:</span>
+                                      <button
+                                        onClick={() => {
+                                          setBuilderContainerView('add_structure');
+                                          playSfx('select');
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '5px',
+                                          padding: '5px 12px',
+                                          backgroundColor: '#10B981',
+                                          color: '#FFFFFF',
+                                          borderRadius: '8px',
+                                          border: 'none',
+                                          fontSize: '12px',
+                                          fontWeight: 800,
+                                          cursor: 'pointer',
+                                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                                        }}
+                                      >
+                                        <Plus size={14} />
+                                        <span>Add Structure</span>
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748B' }}>
+                                    💡 Click any structure on the map to resize, rotate, move, or configure controllers & sensors.
+                                  </div>
+                                </div>
+            )}
+
+                                {/* VIEW 2: ADD STRUCTURE (CATALOG) */}
+                                {builderContainerView === 'add_structure' && (
+                                  <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A' }}>
+                                          Add Structure
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: '#64748B' }}>
+                                          Select an item to place on the farmland grid
+                                        </span>
+                                      </div>
+
+                                      {/* Back button to Farm Layout */}
+                                      <button
+                                        onClick={() => setBuilderContainerView('farm_layout')}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          padding: '4px 10px',
+                                          backgroundColor: '#F1F5F9',
+                                          border: '1px solid #CBD5E1',
+                                          borderRadius: '6px',
+                                          fontSize: '11px',
+                                          fontWeight: 800,
+                                          color: '#0F172A',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <ArrowLeft size={13} />
+                                        <span>Back to Farm Layout</span>
+                                      </button>
+                                    </div>
+
+                                    {/* Structure Catalog Grid */}
+                                    <div style={{
+                                      display: 'grid',
+                                      gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                                      gap: '8px',
+                                      maxHeight: '220px',
+                                      overflowY: 'auto'
+                                    }}>
+                                      {catalog.map((item, idx) => (
+                                        <div
+                                          key={idx}
+                                          onClick={() => handlePickCatalogItem(item)}
+                                          style={{
+                                            padding: '8px 10px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #E2E8F0',
+                                            backgroundColor: '#F8FAFC',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease',
+                                            display: 'flex',
+                                            gap: '8px',
+                                            alignItems: 'flex-start'
+                                          }}
+                                          onMouseEnter={e => {
+                                            e.currentTarget.style.borderColor = '#10B981';
+                                            e.currentTarget.style.backgroundColor = '#FFFFFF';
+                                          }}
+                                          onMouseLeave={e => {
+                                            e.currentTarget.style.borderColor = '#E2E8F0';
+                                            e.currentTarget.style.backgroundColor = '#F8FAFC';
+                                          }}
+                                        >
+                                          <div style={{ fontSize: '20px' }}>{item.icon}</div>
+                                          <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {item.name}
+                                              </span>
+                                              <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'monospace', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '1px 4px', borderRadius: '3px', flexShrink: 0, marginLeft: '4px' }}>
+                                                {item.wTiles}×{item.hTiles}
+                                              </span>
+                                            </div>
+                                            <div style={{ fontSize: '9px', color: '#64748B', marginTop: '2px', lineHeight: '1.2', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                              {item.desc}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* VIEW 3: BUILDING INFO & CONFIG (CRUD CONTROLLERS & SENSORS) */}
+                                {builderContainerView === 'building_info' && selectedStructure && (
+                                  <div>
+                                    {/* Top Header: Structure Name, Coordinates, Back button */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Cpu size={14} color="#10B981" />
+                                        <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A' }}>
+                                          {selectedStructure.name}
+                                        </span>
+                                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B', fontFamily: 'monospace', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: '4px' }}>
+                                          Pos: ({selectedStructure.tileX}, {selectedStructure.tileY})
+                                        </span>
+                                      </div>
+
+                                      {/* Back button to Farm Layout */}
+                                      <button
+                                        onClick={() => setBuilderContainerView('farm_layout')}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          padding: '3px 8px',
+                                          backgroundColor: '#F1F5F9',
+                                          border: '1px solid #CBD5E1',
+                                          borderRadius: '6px',
+                                          fontSize: '11px',
+                                          fontWeight: 800,
+                                          color: '#0F172A',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <ArrowLeft size={12} />
+                                        <span>Back to Farm Layout</span>
+                                      </button>
+                                    </div>
+
+                                    {/* Building Geometry Controls: Size W x L, Move, Rotate, Remove (NO Inspect Controller here!) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '10px', backgroundColor: '#F8FAFC', padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                      {/* Size W x L steppers */}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ fontSize: '11px', color: '#475569', fontWeight: 800 }}>Size:</span>
+
+                                        {/* Width */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                          <span style={{ fontSize: '10px', color: '#94A3B8' }}>W:</span>
+                                          <button
+                                            onClick={() => handleResizeSelected(-1, 0)}
+                                            disabled={selectedStructure.wTiles <= 1}
+                                            style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.wTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
+                                          >
+                                            -
+                                          </button>
+                                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: '#0F172A', minWidth: '16px', textAlign: 'center' }}>
+                                            {selectedStructure.wTiles}
+                                          </span>
+                                          <button
+                                            onClick={() => handleResizeSelected(1, 0)}
+                                            disabled={selectedStructure.tileX + selectedStructure.wTiles >= gridCols}
+                                            style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileX + selectedStructure.wTiles >= gridCols ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+
+                                        <span style={{ color: '#CBD5E1' }}>×</span>
+
+                                        {/* Length */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                          <span style={{ fontSize: '10px', color: '#94A3B8' }}>L:</span>
+                                          <button
+                                            onClick={() => handleResizeSelected(0, -1)}
+                                            disabled={selectedStructure.hTiles <= 1}
+                                            style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.hTiles <= 1 ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px' }}
+                                          >
+                                            -
+                                          </button>
+                                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: '#0F172A', minWidth: '16px', textAlign: 'center' }}>
+                                            {selectedStructure.hTiles}
+                                          </span>
+                                          <button
+                                            onClick={() => handleResizeSelected(0, 1)}
+                                            disabled={selectedStructure.tileY + selectedStructure.hTiles >= gridRows}
+                                            style={{ padding: '1px 5px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '3px', cursor: selectedStructure.tileY + selectedStructure.hTiles >= gridRows ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', color: '#10B981' }}
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Action buttons: Move, Rotate, Remove */}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <button
+                                          onClick={() => handleStartMove(selectedStructure.id)}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            backgroundColor: '#FFFFFF',
+                                            border: '1px solid #CBD5E1',
+                                            borderRadius: '5px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            color: '#0F172A',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          <Move size={11} color="#2563EB" />
+                                          <span>Move</span>
+                                        </button>
+
+                                        <button
+                                          onClick={handleRotateSelected}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            backgroundColor: '#FFFFFF',
+                                            border: '1px solid #CBD5E1',
+                                            borderRadius: '5px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            color: '#0F172A',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          <RotateCw size={11} color="#10B981" />
+                                          <span>Rotate</span>
+                                        </button>
+
+                                        <button
+                                          onClick={() => {
+                                            handleDeleteSelected();
+                                            setBuilderContainerView('farm_layout');
+                                          }}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            backgroundColor: '#FEE2E2',
+                                            border: '1px solid #FCA5A5',
+                                            borderRadius: '5px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            color: '#B91C1C',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          <Trash2 size={11} />
+                                          <span>Remove</span>
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Controllers & Sensors CRUD Section */}
+                                    <div>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A' }}>
+                                            Assigned Controllers ({ensureControllers(selectedStructure).length})
+                                          </span>
+                                          <span style={{ fontSize: '10px', color: '#64748B' }}>
+                                            (Multi-controller architecture)
+                                          </span>
+                                        </div>
+
+                                        {/* + Assign Controller Dropdown */}
+                                        <div style={{ position: 'relative' }}>
+                                          <button
+                                            onClick={() => setIsAddingControllerOpen(!isAddingControllerOpen)}
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                              padding: '3px 8px',
+                                              backgroundColor: '#0F172A',
+                                              color: '#FFFFFF',
+                                              borderRadius: '5px',
+                                              border: 'none',
+                                              fontSize: '10px',
+                                              fontWeight: 700,
+                                              cursor: 'pointer'
+                                            }}
+                                          >
+                                            <Plus size={11} />
+                                            <span>Assign Controller</span>
+                                          </button>
+
+                                          {isAddingControllerOpen && (
+                                            <div style={{
+                                              position: 'absolute',
+                                              right: 0,
+                                              bottom: '100%',
+                                              marginBottom: '4px',
+                                              backgroundColor: '#FFFFFF',
+                                              borderRadius: '8px',
+                                              boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+                                              border: '1px solid #CBD5E1',
+                                              padding: '4px',
+                                              zIndex: 30,
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              gap: '2px',
+                                              width: '190px'
+                                            }}>
+                                              {[
+                                                'MultiGrow MGC-Pro 16-Ch',
+                                                'Autogrow EC Mini',
+                                                'IntelliDose Hub',
+                                                'IntelliClimate Pro'
+                                              ].map((m) => (
+                                                <button
+                                                  key={m}
+                                                  onClick={() => {
+                                                    handleAddController(selectedStructure.id, m as any);
+                                                    setIsAddingControllerOpen(false);
+                                                  }}
+                                                  style={{
+                                                    padding: '5px 8px',
+                                                    backgroundColor: '#F8FAFC',
+                                                    border: '1px solid #E2E8F0',
+                                                    borderRadius: '4px',
+                                                    textAlign: 'left',
+                                                    fontSize: '11px',
+                                                    fontWeight: 700,
+                                                    color: '#0F172A',
+                                                    cursor: 'pointer'
+                                                  }}
+                                                >
+                                                  + {m}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* List of Controllers and their attached sensors */}
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                                        {ensureControllers(selectedStructure).map((ctrl) => (
+                                          <div
+                                            key={ctrl.id}
+                                            style={{
+                                              padding: '6px 8px',
+                                              backgroundColor: '#F8FAFC',
+                                              borderRadius: '6px',
+                                              border: '1px solid #E2E8F0'
+                                            }}
+                                          >
+                                            {/* Controller Row */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A' }}>
+                                                  {ctrl.model}
+                                                </span>
+                                                <span style={{ fontSize: '9px', fontFamily: 'monospace', color: '#64748B' }}>
+                                                  [{ctrl.serial}]
+                                                </span>
+                                                <span style={{ fontSize: '9px', color: '#2563EB', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.1)', padding: '1px 4px', borderRadius: '3px' }}>
+                                                  {(ctrl.sensors || []).length} sensors
+                                                </span>
+                                              </div>
+
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                {/* Add Sensor to this controller */}
+                                                <div style={{ display: 'flex', gap: '2px' }}>
+                                                  {(['ec', 'ph', 'vpd', 'vwc', 'temp'] as AttachedSensor['type'][]).map(stype => (
+                                                    <button
+                                                      key={stype}
+                                                      onClick={() => handleAddSensor(selectedStructure.id, ctrl.id || ctrl.serial, stype)}
+                                                      title={`Attach ${stype.toUpperCase()} sensor to ${ctrl.model}`}
+                                                      style={{
+                                                        padding: '1px 4px',
+                                                        backgroundColor: '#FFFFFF',
+                                                        border: '1px solid #CBD5E1',
+                                                        borderRadius: '3px',
+                                                        fontSize: '9px',
+                                                        fontWeight: 800,
+                                                        color: '#475569',
+                                                        cursor: 'pointer'
+                                                      }}
+                                                    >
+                                                      +{stype.toUpperCase()}
+                                                    </button>
+                                                  ))}
+                                                </div>
+
+                                                {/* Delete Controller Button */}
+                                                <button
+                                                  onClick={() => handleRemoveController(selectedStructure.id, ctrl.id || ctrl.serial)}
+                                                  title="Remove Controller"
+                                                  style={{
+                                                    padding: '2px 4px',
+                                                    backgroundColor: 'transparent',
+                                                    border: 'none',
+                                                    color: '#94A3B8',
+                                                    cursor: 'pointer'
+                                                  }}
+                                                >
+                                                  <Trash2 size={11} color="#EF4444" />
+                                                </button>
+                                              </div>
+                                            </div>
+
+                                            {/* Attached Sensors Chips */}
+                                            {ctrl.sensors && ctrl.sensors.length > 0 && (
+                                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                                                {ctrl.sensors.map((sens) => (
+                                                  <div
+                                                    key={sens.id}
+                                                    style={{
+                                                      display: 'flex',
+                                                      alignItems: 'center',
+                                                      gap: '3px',
+                                                      padding: '1px 5px',
+                                                      backgroundColor: '#FFFFFF',
+                                                      borderRadius: '4px',
+                                                      border: '1px solid #CBD5E1',
+                                                      fontSize: '9px'
+                                                    }}
+                                                  >
+                                                    <span style={{ fontWeight: 700, color: '#0F172A' }}>
+                                                      {sens.name.split(' ')[0]} ({sens.pin}):
+                                                    </span>
+                                                    <span style={{ fontWeight: 800, fontFamily: 'monospace', color: '#10B981' }}>
+                                                      {sens.value} {sens.unit}
+                                                    </span>
+                                                    <button
+                                                      onClick={() => handleRemoveSensor(selectedStructure.id, ctrl.id || ctrl.serial, sens.id)}
+                                                      style={{
+                                                        border: 'none',
+                                                        background: 'none',
+                                                        color: '#94A3B8',
+                                                        cursor: 'pointer',
+                                                        padding: 0,
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                      }}
+                                                      title="Detach sensor"
+                                                    >
+                                                      <X size={9} />
+                                                    </button>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
             </div>
-          </div>
-        </div>
-      )}
+                            )}
+                          </div>
+                        )}
 
-      {/* 9. Autogrow Hardware Diagnostic Modal */}
-      {isHardwareModalOpen && selectedStructure && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: '16px',
-            maxWidth: '560px',
-            width: '100%',
-            overflow: 'hidden',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 20px',
-              backgroundColor: '#0F172A',
-              color: '#FFFFFF'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Cpu size={18} color="#10B981" />
-                <span style={{ fontSize: '15px', fontWeight: 800 }}>
-                  {selectedStructure.controller.model} Hardware Panel
-                </span>
-              </div>
-              <button
-                onClick={() => setIsHardwareModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+                        {/* 6B. Live Reading Sensor Mode Telemetry Bar for Selected Structure (activeTab === 'view') - CENTERED */}
+                        {activeTab === 'view' && selectedStructure && (
+                          <div
+                            data-map-hud="true"
+                            style={{
+                              position: 'absolute',
+                              bottom: '20px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              maxWidth: 'calc(100% - 280px)',
+                              backgroundColor: '#FFFFFF',
+                              borderRadius: '14px',
+                              border: '1px solid #CBD5E1',
+                              padding: '10px 20px',
+                              boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+                              zIndex: 20,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '6px',
+                              pointerEvents: 'auto',
+                              textAlign: 'center'
+                            }}
+                          >
+                            {/* Facility Name, Structure Type Badge & Hardware Badge - CENTERED */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <Cpu size={14} color="#10B981" />
+                              <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                                {selectedStructure.name}
+                              </span>
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: '#F1F5F9',
+                                color: '#475569',
+                                flexShrink: 0
+                              }}>
+                                {getStructureTypeLabel(selectedStructure.type)}
+                              </span>
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                fontFamily: 'monospace',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                color: '#10B981',
+                                flexShrink: 0
+                              }}>
+                                {selectedStructure.controller.model}
+                              </span>
+                            </div>
+        )}
 
-            <div style={{ padding: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>SERIAL NUMBER</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', fontFamily: 'monospace', marginTop: '2px' }}>
-                    {selectedStructure.controller.serial}
-                  </div>
-                </div>
+                            {/* 6B. Live Reading Sensor Mode Telemetry Bar for Selected Structure (activeTab === 'view') - CENTERED */}
+                            {activeTab === 'view' && selectedStructure && (
+                              <div
+                                data-map-hud="true"
+                                style={{
+                                  position: 'absolute',
+                                  bottom: '20px',
+                                  left: '50%',
+                                  transform: 'translateX(-50%)',
+                                  maxWidth: 'calc(100% - 280px)',
+                                  backgroundColor: '#FFFFFF',
+                                  borderRadius: '14px',
+                                  border: '1px solid #CBD5E1',
+                                  padding: '10px 20px',
+                                  boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+                                  zIndex: 20,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  pointerEvents: 'auto',
+                                  textAlign: 'center'
+                                }}
+                              >
+                                {/* Facility Name & Hardware Badge - CENTERED */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                  <Cpu size={14} color="#10B981" />
+                                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                                    {selectedStructure.name}
+                                  </span>
+                                  <span style={{
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    fontFamily: 'monospace',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                    color: '#10B981',
+                                    flexShrink: 0
+                                  }}>
+                                    {selectedStructure.controller.model}
+                                  </span>
+                                </div>
 
-                <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>IP & FIRMWARE</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-                    {selectedStructure.controller.ipAddress} · {selectedStructure.controller.firmware}
-                  </div>
-                </div>
+                                {/* Real-time Telemetry Metrics - CENTERED */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '11px', color: '#64748B', flexWrap: 'wrap' }}>
+                                  <span>Serial: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.serial}</strong></span>
+                                  <span>Wi-Fi: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.rssi} dBm</strong></span>
+                                  <span>EC: <strong style={{ color: '#10B981', fontFamily: 'monospace' }}>{selectedStructure.metrics.ec.toFixed(2)} mS</strong></span>
+                                  <span>pH: <strong style={{ color: '#2563EB', fontFamily: 'monospace' }}>{selectedStructure.metrics.ph.toFixed(2)}</strong></span>
+                                  <span>VPD: <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>{selectedStructure.metrics.vpd.toFixed(2)} kPa</strong></span>
+                                </div>
 
-                <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>HOURLY DOSE COUNT (DC/h)</div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#10B981', fontFamily: 'monospace', marginTop: '2px' }}>
-                    {selectedStructure.controller.doseCountHour} doses/hr
-                  </div>
-                </div>
+                                {/* Inspect Controller Button - CENTERED */}
+                                <button
+                                  onClick={() => {
+                                    setIsHardwareModalOpen(true);
+                                    playSfx('select');
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '5px 16px',
+                                    backgroundColor: '#0F172A',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    color: '#FFFFFF',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 6px rgba(15,23,42,0.15)',
+                                    marginTop: '2px'
+                                  }}
+                                >
+                                  <Sliders size={12} color="#10B981" />
+                                  <span>Inspect Controller</span>
+                                </button>
+                              </div>
+                            )}
 
-                <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>TOTAL DOSE COUNT (DCT)</div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563EB', fontFamily: 'monospace', marginTop: '2px' }}>
-                    {selectedStructure.controller.doseCountTotal} lifetime
-                  </div>
-                </div>
-              </div>
+                            {/* 7. Central SVG 3D Isometric Canvas */}
+                            <svg
+                              ref={svgRef}
+                              viewBox="0 0 1080 620"
+                              onMouseMove={handleSvgMouseMove}
+                              onClick={() => {
+                                if (suppressClickRef.current) return;
+                                if (hoveredTile && (activePlacingItem || movingStructureId)) {
+                                  handleTileClick(hoveredTile.x, hoveredTile.y);
+                                }
+                              }}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'block',
+                                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
+                                transformOrigin: 'center center',
+                                transition: isPanning ? 'none' : 'transform 0.15s ease-out'
+                              }}
+                            >
+                              <defs>
+                                <linearGradient id="siloGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                  <stop offset="0%" stopColor="#CBD5E1" />
+                                  <stop offset="50%" stopColor="#FFFFFF" />
+                                  <stop offset="100%" stopColor="#94A3B8" />
+                                </linearGradient>
+                              </defs>
 
-              <div style={{ padding: '14px', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '16px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: '#065F46', marginBottom: '4px' }}>
-                  Autogrow Direct-Drive Peristaltic Dosing (24VDC)
-                </div>
-                <div style={{ fontSize: '11px', color: '#047857' }}>
-                  Forces Nutrient Pump A and B pulse shot into mixing sample pot with instant flow verification.
-                </div>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                  <button
-                    onClick={() => {
-                      playSfx('place');
-                      onTriggerDose?.('pump-nutrient-a', 5);
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '8px',
-                      backgroundColor: '#10B981',
-                      color: '#FFFFFF',
-                      borderRadius: '6px',
-                      border: 'none',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Pulse Pump A (5s)
-                  </button>
-                  <button
-                    onClick={() => {
-                      playSfx('place');
-                      onTriggerDose?.('pump-nutrient-b', 5);
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '8px',
-                      backgroundColor: '#0F172A',
-                      color: '#FFFFFF',
-                      borderRadius: '6px',
-                      border: 'none',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Pulse Pump B (5s)
-                  </button>
-                </div>
-              </div>
+                              {renderGroundSlab()}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => setIsHardwareModalOpen(false)}
-                  style={{
-                    padding: '8px 18px',
-                    backgroundColor: '#F1F5F9',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: '#0F172A',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Close Hardware Panel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+                              {/* Concrete Access Roadway */}
+                              <g id="access-road">
+                                {Array.from({ length: gridCols }).map((_, rx) => {
+                                  const pA = tileToScreen(rx, 4, 0.5, gridCols, gridRows);
+                                  const pB = tileToScreen(rx + 1, 4, 0.5, gridCols, gridRows);
+                                  const pC = tileToScreen(rx + 1, 5, 0.5, gridCols, gridRows);
+                                  const pD = tileToScreen(rx, 5, 0.5, gridCols, gridRows);
+                                  return (
+                                    <polygon
+                                      key={`road-${rx}`}
+                                      points={`${ptStr(pA)} ${ptStr(pB)} ${ptStr(pC)} ${ptStr(pD)}`}
+                                      fill="#E2E8F0"
+                                      stroke="#CBD5E1"
+                                      strokeWidth="0.5"
+                                    />
+                                  );
+                                })}
+                                {/* Dashed Center Road Divider */}
+                                {Array.from({ length: gridCols }).map((_, rx) => {
+                                  const pMidA = tileToScreen(rx + 0.2, 4.5, 0.6, gridCols, gridRows);
+                                  const pMidB = tileToScreen(rx + 0.8, 4.5, 0.6, gridCols, gridRows);
+                                  return (
+                                    <line
+                                      key={`road-stripe-${rx}`}
+                                      x1={pMidA[0]}
+                                      y1={pMidA[1]}
+                                      x2={pMidB[0]}
+                                      y2={pMidB[1]}
+                                      stroke="#FFFFFF"
+                                      strokeWidth="1.5"
+                                      strokeDasharray="4,3"
+                                    />
+                                  );
+                                })}
+                              </g>
+
+                              {/* Docked Delivery Trucks at Packhouse (WarehouseOS Style) */}
+                              {renderDeliveryTruck('truck-1', 4.3, 6.2)}
+                              {renderDeliveryTruck('truck-2', 4.3, 7.6)}
+
+                              {/* Ornamental Perimeter Trees (WarehouseOS Style) */}
+                              {renderTree('tree-1', 0.1, 0.1)}
+                              {renderTree('tree-2', gridCols - 0.8, 0.1)}
+                              {renderTree('tree-3', gridCols - 0.8, gridRows - 0.9)}
+                              {renderTree('tree-4', 0.1, 4.8)}
+
+                              return (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  left: `${clampedX}px`,
+                                  top: isNearTop ? `${Math.max(70, domY + 24)}px` : `${Math.max(70, domY - 12)}px`,
+                                  transform: isNearTop ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+                                  backgroundColor: '#0F172A',
+                                  color: '#FFFFFF',
+                                  borderRadius: '12px',
+                                  padding: '12px 16px',
+                                  boxShadow: '0 20px 40px -10px rgba(0,0,0,0.4)',
+                                  border: '1px solid #10B981',
+                                  zIndex: 45,
+                                  pointerEvents: 'none',
+                                  width: '240px',
+                                  transition: 'left 0.1s ease-out, top 0.1s ease-out'
+                                }}
+                              >
+                                {/* Header */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #334155', paddingBottom: '6px' }}>
+                                  <div>
+                                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#FFFFFF' }}>{hoveredStructure.name}</div>
+                                    <div style={{ fontSize: '10px', color: '#94A3B8' }}>{getStructureTypeLabel(hoveredStructure.type)} · {hoveredStructure.crop}</div>
+                                  </div>
+
+                                  {/* Hardware & WiFi */}
+                                  <div style={{ fontSize: '11px', color: '#CBD5E1', marginBottom: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#34D399', marginBottom: '2px' }}>
+                                      <Cpu size={12} />
+                                      <span>{hoveredStructure.controller.model}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: '#94A3B8' }}>
+                                      <span>📶 {hoveredStructure.controller.wifiSSID}</span>
+                                      <span style={{ color: '#34D399', fontFamily: 'monospace' }}>{hoveredStructure.controller.rssi} dBm (95%)</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Live Sensor Metrics Grid */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', backgroundColor: '#1E293B', padding: '6px', borderRadius: '6px', marginBottom: '8px' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '9px', color: '#94A3B8' }}>LIVE EC</div>
+                                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#34D399', fontFamily: 'monospace' }}>{hoveredStructure.metrics.ec.toFixed(2)}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '9px', color: '#94A3B8' }}>LIVE pH</div>
+                                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#60A5FA', fontFamily: 'monospace' }}>{hoveredStructure.metrics.ph.toFixed(2)}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '9px', color: '#94A3B8' }}>VPD</div>
+                                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#FBBF24', fontFamily: 'monospace' }}>{hoveredStructure.metrics.vpd.toFixed(2)}k</div>
+                                    </div>
+                                  </div>
+
+                                  {/* Dose Velocity */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#CBD5E1' }}>
+                                    <span>Dose Velocity: <strong style={{ color: '#34D399' }}>{hoveredStructure.controller.doseCountHour} DC/h</strong></span>
+                                    <span>Total: <strong style={{ color: '#93C5FD' }}>{hoveredStructure.controller.doseCountTotal} DCT</strong></span>
+                                  </div>
+                                </div>
+                                );
+        })()}
+                              </div> {/* End Main Content Area (~80%) */}
+
+                              {/* 8. Docked Full-Height Facilities Submenu Panel (~20%, 100% height from top to bottom) */}
+                              <div style={{
+                                width: '260px',
+                                minWidth: '260px',
+                                height: '100%',
+                                backgroundColor: '#FFFFFF',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                borderLeft: facilitiesPosition === 'right' ? '1px solid #E2E8F0' : 'none',
+                                borderRight: facilitiesPosition === 'left' ? '1px solid #E2E8F0' : 'none',
+                                zIndex: 10,
+                                boxShadow: facilitiesPosition === 'right' ? '-4px 0 15px rgba(0,0,0,0.02)' : '4px 0 15px rgba(0,0,0,0.02)'
+                              }}>
+                                {/* Submenu Header with Dock Left/Right Switcher */}
+                                <div style={{
+                                  padding: '16px 16px 12px 16px',
+                                  borderBottom: '1px solid #F1F5F9',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '6px'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                                      Facilities · {currentFarm.name.split(' ')[0]}
+                                    </span>
+                                    <button
+                                      onClick={() => setFacilitiesPosition(p => p === 'right' ? 'left' : 'right')}
+                                      title={`Dock Facilities to ${facilitiesPosition === 'right' ? 'Left' : 'Right'}`}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '3px 7px',
+                                        backgroundColor: '#F8FAFC',
+                                        border: '1px solid #CBD5E1',
+                                        borderRadius: '4px',
+                                        fontSize: '10px',
+                                        fontWeight: 700,
+                                        color: '#475569',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      <ArrowLeftRight size={11} />
+                                      <span>{facilitiesPosition === 'right' ? 'Dock Left' : 'Dock Right'}</span>
+                                    </button>
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: '#64748B' }}>
+                                    {structures.length} active bays · {currentFarm.stats.status}
+                                  </div>
+                                </div>
+
+                                {/* Scrollable List of Farm Facilities */}
+                                <div style={{
+                                  flex: 1,
+                                  overflowY: 'auto',
+                                  padding: '12px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '8px'
+                                }}>
+                                  {structures.map(struct => {
+                                    const isSel = selectedId === struct.id;
+                                    const isAttn = struct.controller.status === 'ATTENTION';
+
+                                    return (
+                                      <div
+                                        key={struct.id}
+                                        onClick={() => handleStructureClick(struct)}
+                                        style={{
+                                          padding: '10px 12px',
+                                          borderRadius: '8px',
+                                          backgroundColor: isSel ? '#F1F5F9' : '#FFFFFF',
+                                          border: `1px solid ${isSel ? '#10B981' : '#E2E8F0'}`,
+                                          cursor: 'pointer',
+                                          transition: 'all 0.15s ease',
+                                          boxShadow: isSel ? '0 2px 8px rgba(16,185,129,0.12)' : 'none'
+                                        }}
+                                      >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                                          {renamingStructureId === struct.id ? (
+                                            <div
+                                              onClick={(e) => e.stopPropagation()}
+                                              style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}
+                                            >
+                                              <input
+                                                type="text"
+                                                value={renameDraft}
+                                                onChange={(e) => setRenameDraft(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') handleCommitRename(struct.id);
+                                                  if (e.key === 'Escape') setRenamingStructureId(null);
+                                                }}
+                                                autoFocus
+                                                style={{
+                                                  padding: '2px 6px',
+                                                  fontSize: '11px',
+                                                  fontWeight: 700,
+                                                  color: '#0F172A',
+                                                  border: '1px solid #10B981',
+                                                  borderRadius: '4px',
+                                                  outline: 'none',
+                                                  width: '100%',
+                                                  minWidth: 0
+                                                }}
+                                              />
+                                              <button
+                                                onClick={() => handleCommitRename(struct.id)}
+                                                title="Save name"
+                                                style={{ padding: '2px 4px', backgroundColor: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                                              >
+                                                <Check size={10} />
+                                              </button>
+                                              <button
+                                                onClick={() => setRenamingStructureId(null)}
+                                                title="Cancel"
+                                                style={{ padding: '2px 4px', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                                              >
+                                                <X size={10} />
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                                                <div style={{
+                                                  width: '7px',
+                                                  height: '7px',
+                                                  borderRadius: '50%',
+                                                  backgroundColor: isAttn ? '#F59E0B' : '#10B981',
+                                                  flexShrink: 0
+                                                }} />
+                                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                  {struct.name}
+                                                </span>
+                                              </div>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleStartRename(struct);
+                                                  }}
+                                                  title="Rename facility (keeps structure type)"
+                                                  style={{
+                                                    padding: '2px',
+                                                    backgroundColor: 'transparent',
+                                                    border: 'none',
+                                                    color: '#94A3B8',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center'
+                                                  }}
+                                                >
+                                                  <Pencil size={10} />
+                                                </button>
+                                                <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: isAttn ? '#F59E0B' : '#10B981' }}>
+                                                  {struct.metrics.ec.toFixed(1)} mS
+                                                </span>
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '10px', color: '#64748B', gap: '6px' }}>
+                                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {getStructureTypeLabel(struct.type)} · {struct.crop.split('(')[0].trim()}
+                                          </span>
+                                          <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{struct.controller.doseCountHour} DC/h</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* 9. Unsaved Changes Prompt Confirmation Modal */}
+                              {isExitPromptOpen && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                                  backdropFilter: 'blur(3px)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  zIndex: 70,
+                                  padding: '20px'
+                                }}>
+                                  <div style={{
+                                    backgroundColor: '#FFFFFF',
+                                    borderRadius: '14px',
+                                    maxWidth: '440px',
+                                    width: '100%',
+                                    padding: '24px',
+                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                    border: '1px solid #CBD5E1',
+                                    textAlign: 'center'
+                                  }}>
+                                    <div style={{
+                                      width: '48px',
+                                      height: '48px',
+                                      borderRadius: '50%',
+                                      backgroundColor: '#FEF3C7',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      margin: '0 auto 14px auto'
+                                    }}>
+                                      <AlertTriangle size={24} color="#D97706" />
+                                    </div>
+                                    <div style={{ fontSize: '16px', fontWeight: 900, color: '#0F172A', marginBottom: '8px' }}>
+                                      Unsaved Layout Changes
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5', marginBottom: '20px' }}>
+                                      You have modified the farm layout in Builder Mode. Would you like to save your changes before exiting to Live Sensor Monitoring?
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                      <button
+                                        onClick={() => {
+                                          handleSaveLayout();
+                                          exitBuilderMode();
+                                        }}
+                                        style={{
+                                          padding: '8px 16px',
+                                          backgroundColor: '#10B981',
+                                          color: '#FFFFFF',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '12px',
+                                          fontWeight: 800,
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '6px'
+                                        }}
+                                      >
+                                        <Save size={13} />
+                                        <span>Save & Exit</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          exitBuilderMode();
+                                        }}
+                                        style={{
+                                          padding: '8px 14px',
+                                          backgroundColor: '#FEE2E2',
+                                          color: '#DC2626',
+                                          border: '1px solid #FCA5A5',
+                                          borderRadius: '6px',
+                                          fontSize: '12px',
+                                          fontWeight: 700,
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        Discard & Exit
+                                      </button>
+                                      <button
+                                        onClick={() => setIsExitPromptOpen(false)}
+                                        style={{
+                                          padding: '8px 14px',
+                                          backgroundColor: '#F1F5F9',
+                                          color: '#475569',
+                                          border: '1px solid #CBD5E1',
+                                          borderRadius: '6px',
+                                          fontSize: '12px',
+                                          fontWeight: 700,
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        Keep Editing
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 9. Autogrow Hardware Diagnostic Modal */}
+                              {isHardwareModalOpen && selectedStructure && (
+                                <div style={{
+                                  position: 'fixed',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  backgroundColor: 'rgba(0,0,0,0.7)',
+                                  backdropFilter: 'blur(4px)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  zIndex: 100,
+                                  padding: '20px'
+                                }}>
+                                  <div style={{
+                                    backgroundColor: '#FFFFFF',
+                                    borderRadius: '16px',
+                                    maxWidth: '560px',
+                                    width: '100%',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+                                  }}>
+                                    <div style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      padding: '16px 20px',
+                                      backgroundColor: '#0F172A',
+                                      color: '#FFFFFF'
+                                    }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Cpu size={18} color="#10B981" />
+                                        <span style={{ fontSize: '15px', fontWeight: 800 }}>
+                                          {selectedStructure.controller.model} Hardware Panel
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={() => setIsHardwareModalOpen(false)}
+                                        style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
+                                      >
+                                        <X size={18} />
+                                      </button>
+                                    </div>
+
+                                    <div style={{ padding: '20px' }}>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                                        <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                          <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>SERIAL NUMBER</div>
+                                          <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', fontFamily: 'monospace', marginTop: '2px' }}>
+                                            {selectedStructure.controller.serial}
+                                          </div>
+                                        </div>
+
+                                        <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                          <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>IP & FIRMWARE</div>
+                                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+                                            {selectedStructure.controller.ipAddress} · {selectedStructure.controller.firmware}
+                                          </div>
+                                        </div>
+
+                                        <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                          <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>HOURLY DOSE COUNT (DC/h)</div>
+                                          <div style={{ fontSize: '18px', fontWeight: 800, color: '#10B981', fontFamily: 'monospace', marginTop: '2px' }}>
+                                            {selectedStructure.controller.doseCountHour} doses/hr
+                                          </div>
+                                        </div>
+
+                                        <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                          <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>TOTAL DOSE COUNT (DCT)</div>
+                                          <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563EB', fontFamily: 'monospace', marginTop: '2px' }}>
+                                            {selectedStructure.controller.doseCountTotal} lifetime
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div style={{ padding: '14px', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '16px' }}>
+                                        <div style={{ fontSize: '12px', fontWeight: 800, color: '#065F46', marginBottom: '4px' }}>
+                                          Autogrow Direct-Drive Peristaltic Dosing (24VDC)
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#047857' }}>
+                                          Forces Nutrient Pump A and B pulse shot into mixing sample pot with instant flow verification.
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                                          <button
+                                            onClick={() => {
+                                              playSfx('place');
+                                              onTriggerDose?.('pump-nutrient-a', 5);
+                                            }}
+                                            style={{
+                                              flex: 1,
+                                              padding: '8px',
+                                              backgroundColor: '#10B981',
+                                              color: '#FFFFFF',
+                                              borderRadius: '6px',
+                                              border: 'none',
+                                              fontSize: '12px',
+                                              fontWeight: 700,
+                                              cursor: 'pointer'
+                                            }}
+                                          >
+                                            Pulse Pump A (5s)
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              playSfx('place');
+                                              onTriggerDose?.('pump-nutrient-b', 5);
+                                            }}
+                                            style={{
+                                              flex: 1,
+                                              padding: '8px',
+                                              backgroundColor: '#0F172A',
+                                              color: '#FFFFFF',
+                                              borderRadius: '6px',
+                                              border: 'none',
+                                              fontSize: '12px',
+                                              fontWeight: 700,
+                                              cursor: 'pointer'
+                                            }}
+                                          >
+                                            Pulse Pump B (5s)
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <button
+                                          onClick={() => setIsHardwareModalOpen(false)}
+                                          style={{
+                                            padding: '8px 18px',
+                                            backgroundColor: '#F1F5F9',
+                                            border: '1px solid #CBD5E1',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            fontWeight: 700,
+                                            color: '#0F172A',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          Close Hardware Panel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        );
 };
