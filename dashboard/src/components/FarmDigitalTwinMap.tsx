@@ -19,7 +19,9 @@ import {
   ArrowLeft,
   Plus,
   AlertTriangle,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Pencil,
+  Check
 } from 'lucide-react';
 
 export interface AttachedSensor {
@@ -73,6 +75,20 @@ export interface TileStructure {
     pumpB: 'IDLE' | 'DOSING';
     acid: 'IDLE' | 'DOSING';
   };
+}
+
+export function getStructureTypeLabel(type: TileStructure['type']): string {
+  const labels: Record<TileStructure['type'], string> = {
+    greenhouse: 'Venlo Glasshouse',
+    polyhouse: 'High-Tunnel Polyhouse',
+    beds: 'NFT Gutter Beds',
+    silos: 'Fertigation Silos',
+    water_tank: 'RO Water Tank',
+    headhouse: 'Packhouse / Headhouse',
+    controller_station: 'EC Mini Station',
+    pathway: 'Logistics Pathway'
+  };
+  return labels[type] || type;
 }
 
 export function ensureControllers(struct: TileStructure): AttachedController[] {
@@ -844,9 +860,32 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   // Facilities sub-panel dock position: 'right' (default) or 'left' (toggleable)
   const [facilitiesPosition, setFacilitiesPosition] = useState<'right' | 'left'>('right');
 
-  // Track unsaved changes in builder mode
+  // Track unsaved changes in builder mode & inline facility rename
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [isExitPromptOpen, setIsExitPromptOpen] = useState<boolean>(false);
+  const [renamingStructureId, setRenamingStructureId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState<string>('');
+
+  const handleStartRename = (struct: TileStructure) => {
+    setRenamingStructureId(struct.id);
+    setRenameDraft(struct.name);
+  };
+
+  const handleCommitRename = (structId: string) => {
+    const trimmed = renameDraft.trim();
+    if (!trimmed) {
+      setRenamingStructureId(null);
+      return;
+    }
+    setStructures(prev => prev.map(s => (s.id === structId ? { ...s, name: trimmed } : s)));
+    setRenamingStructureId(null);
+    if (activeTab === 'build') {
+      setHasUnsavedChanges(true);
+    }
+    setToastMessage(`Renamed facility to "${trimmed}"`);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 1800);
+  };
 
   // Save layout action
   const handleSaveLayout = () => {
@@ -862,6 +901,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     setActiveTab('view');
     setActivePlacingItem(null);
     setMovingStructureId(null);
+    setRenamingStructureId(null);
     setBuilderContainerView('farm_layout');
     setIsExitPromptOpen(false);
     setHasUnsavedChanges(false);
@@ -2203,42 +2243,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                   ))}
                 </div>
 
-                {/* Zoom Controls inside Dropdown */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginTop: '12px',
-                  paddingTop: '10px',
-                  borderTop: '1px solid #F1F5F9'
-                }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>
-                    Zoom ({Math.round(zoomLevel * 100)}%):
-                  </span>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      onClick={() => updateZoom(zoomLevel + 0.2)}
-                      title="Zoom In"
-                      style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      <ZoomIn size={13} color="#64748B" />
-                    </button>
-                    <button
-                      onClick={() => updateZoom(zoomLevel - 0.2)}
-                      title="Zoom Out"
-                      style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      <ZoomOut size={13} color="#64748B" />
-                    </button>
-                    <button
-                      onClick={handleResetView}
-                      title="Reset Zoom & Center Map"
-                      style={{ padding: '5px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      <RotateCcw size={13} color="#64748B" />
-                    </button>
-                  </div>
-                </div>
+
               </div>
             )}
           </div>
@@ -2355,7 +2360,36 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         </div>
       )}
 
-      {/* 4C. Floating Bottom-Left Camera Zoom Pill */}
+      {/* Top-Center Floating Toast Notification (never overlaps bottom HUDs) */}
+      {saveToast && (
+        <div
+          data-map-hud="true"
+          style={{
+            position: 'absolute',
+            top: '70px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '7px 14px',
+            backgroundColor: '#10B981',
+            color: '#FFFFFF',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontWeight: 700,
+            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+            zIndex: 50,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <CheckCircle2 size={14} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* 4C. Floating Bottom-Left Camera Zoom & Reset Controls (Reset placed right beside Zoom) */}
       <div
         data-map-hud="true"
         style={{
@@ -2364,70 +2398,94 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           left: '20px',
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
-          padding: '4px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '10px',
-          border: '1px solid #CBD5E1',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+          gap: '6px',
           zIndex: 25,
           pointerEvents: 'auto'
         }}
       >
-        <button
-          onClick={() => updateZoom(zoomLevel - 0.2)}
-          disabled={zoomLevel <= 0.65}
-          title="Zoom Out (or scroll wheel down)"
-          style={{
-            padding: '5px 7px',
-            backgroundColor: '#F8FAFC',
-            border: '1px solid #E2E8F0',
-            borderRadius: '6px',
-            cursor: zoomLevel <= 0.65 ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            opacity: zoomLevel <= 0.65 ? 0.5 : 1
-          }}
-        >
-          <ZoomOut size={14} color="#0F172A" />
-        </button>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '3px',
+          padding: '4px',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '10px',
+          border: '1px solid #CBD5E1',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+        }}>
+          <button
+            onClick={() => updateZoom(zoomLevel - 0.2)}
+            disabled={zoomLevel <= 0.65}
+            title="Zoom Out (or scroll wheel down)"
+            style={{
+              padding: '5px 7px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '6px',
+              cursor: zoomLevel <= 0.65 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              opacity: zoomLevel <= 0.65 ? 0.5 : 1
+            }}
+          >
+            <ZoomOut size={14} color="#0F172A" />
+          </button>
+
+          <span
+            style={{
+              padding: '0 6px',
+              fontSize: '11px',
+              fontWeight: 800,
+              fontFamily: 'monospace',
+              color: '#0F172A',
+              minWidth: '38px',
+              textAlign: 'center',
+              userSelect: 'none'
+            }}
+          >
+            {Math.round(zoomLevel * 100)}%
+          </span>
+
+          <button
+            onClick={() => updateZoom(zoomLevel + 0.2)}
+            disabled={zoomLevel >= 2.5}
+            title="Zoom In (or scroll wheel up)"
+            style={{
+              padding: '5px 7px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '6px',
+              cursor: zoomLevel >= 2.5 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              opacity: zoomLevel >= 2.5 ? 0.5 : 1
+            }}
+          >
+            <ZoomIn size={14} color="#0F172A" />
+          </button>
+        </div>
 
         <button
           onClick={handleResetView}
           title="Reset Zoom (100%) & Center Camera"
           style={{
-            padding: '4px 8px',
-            backgroundColor: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#F1F5F9' : 'transparent',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '11px',
-            fontWeight: 800,
-            fontFamily: 'monospace',
-            color: '#0F172A',
-            cursor: 'pointer',
-            minWidth: '46px',
-            textAlign: 'center'
-          }}
-        >
-          {Math.round(zoomLevel * 100)}%
-        </button>
-
-        <button
-          onClick={() => updateZoom(zoomLevel + 0.2)}
-          disabled={zoomLevel >= 2.5}
-          title="Zoom In (or scroll wheel up)"
-          style={{
-            padding: '5px 7px',
-            backgroundColor: '#F8FAFC',
-            border: '1px solid #E2E8F0',
-            borderRadius: '6px',
-            cursor: zoomLevel >= 2.5 ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
-            opacity: zoomLevel >= 2.5 ? 0.5 : 1
+            gap: '4px',
+            padding: '9px 10px',
+            backgroundColor: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#0F172A' : '#FFFFFF',
+            color: zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#FFFFFF' : '#0F172A',
+            borderRadius: '10px',
+            border: '1px solid #CBD5E1',
+            fontSize: '11px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            transition: 'all 0.15s ease'
           }}
         >
-          <ZoomIn size={14} color="#0F172A" />
+          <RotateCcw size={13} color={zoomLevel !== 1 || panOffset.x !== 0 || panOffset.y !== 0 ? '#10B981' : '#475569'} />
+          <span>Reset</span>
         </button>
       </div>
 
@@ -2445,23 +2503,6 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           pointerEvents: 'auto'
         }}
       >
-        {saveToast && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 14px',
-            backgroundColor: '#10B981',
-            color: '#FFFFFF',
-            borderRadius: '8px',
-            fontSize: '12px',
-            fontWeight: 700,
-            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-          }}>
-            <CheckCircle2 size={14} />
-            {toastMessage}
-          </div>
-        )}
 
         {/* Save Layout Button: Active & visible ONLY in Builder Mode */}
         {activeTab === 'build' && (
@@ -2521,21 +2562,37 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       {activeTab === 'build' && (
         <div
           data-map-hud="true"
-          style={{
-            position: 'absolute',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            maxWidth: 'calc(100% - 280px)',
-            minWidth: '400px',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
-            border: '1px solid #CBD5E1',
-            padding: '12px 18px',
-            boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
-            zIndex: 25,
-            pointerEvents: 'auto'
-          }}
+          style={
+            builderContainerView === 'add_structure'
+              ? {
+                  position: 'absolute',
+                  bottom: '20px',
+                  left: '214px',
+                  right: '230px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '14px',
+                  border: '1px solid #CBD5E1',
+                  padding: '10px 14px',
+                  boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+                  zIndex: 25,
+                  pointerEvents: 'auto'
+                }
+              : {
+                  position: 'absolute',
+                  bottom: '20px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  maxWidth: 'calc(100% - 436px)',
+                  minWidth: '400px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '14px',
+                  border: '1px solid #CBD5E1',
+                  padding: '12px 16px',
+                  boxShadow: '0 12px 30px -5px rgba(0,0,0,0.12)',
+                  zIndex: 25,
+                  pointerEvents: 'auto'
+                }
+          }
         >
           {/* VIEW 1: FARM LAYOUT */}
           {builderContainerView === 'farm_layout' && (
@@ -2679,16 +2736,16 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             </div>
           )}
 
-          {/* VIEW 2: ADD STRUCTURE (CATALOG) */}
+          {/* VIEW 2: ADD STRUCTURE (HORIZONTAL SIDE-BY-SIDE CATALOG) */}
           {builderContainerView === 'add_structure' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <span style={{ fontSize: '12px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
                     Add Structure
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B' }}>
-                    Select an item to place on the farmland grid
+                  <span style={{ fontSize: '10px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Scroll & pick an item to drop on the grid
                   </span>
                 </div>
 
@@ -2699,34 +2756,38 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    padding: '4px 10px',
+                    padding: '4px 9px',
                     backgroundColor: '#F1F5F9',
                     border: '1px solid #CBD5E1',
                     borderRadius: '6px',
                     fontSize: '11px',
                     fontWeight: 800,
                     color: '#0F172A',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
-                  <ArrowLeft size={13} />
+                  <ArrowLeft size={12} />
                   <span>Back to Farm Layout</span>
                 </button>
               </div>
 
-              {/* Structure Catalog Grid */}
+              {/* Horizontal Side-by-Side Structure Catalog Strip */}
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                display: 'flex',
+                flexDirection: 'row',
                 gap: '8px',
-                maxHeight: '220px',
-                overflowY: 'auto'
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                paddingBottom: '4px'
               }}>
                 {catalog.map((item, idx) => (
                   <div
                     key={idx}
                     onClick={() => handlePickCatalogItem(item)}
                     style={{
+                      flex: '0 0 185px',
                       padding: '8px 10px',
                       borderRadius: '8px',
                       border: '1px solid #E2E8F0',
@@ -2746,7 +2807,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                       e.currentTarget.style.backgroundColor = '#F8FAFC';
                     }}
                   >
-                    <div style={{ fontSize: '20px' }}>{item.icon}</div>
+                    <div style={{ fontSize: '18px', lineHeight: 1 }}>{item.icon}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -2766,41 +2827,126 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             </div>
           )}
 
-          {/* VIEW 3: BUILDING INFO & CONFIG (CRUD CONTROLLERS & SENSORS) */}
+          {/* VIEW 3: BUILDING INFO & CONFIG (CRUD CONTROLLERS & SENSORS + RENAME) */}
           {builderContainerView === 'building_info' && selectedStructure && (
             <div>
-              {/* Top Header: Structure Name, Coordinates, Back button */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Cpu size={14} color="#10B981" />
-                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A' }}>
-                    {selectedStructure.name}
+              {/* Top Header: Clean 2-line layout so facility name, rename button & immutable type never squish */}
+              <div style={{ marginBottom: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                    <Cpu size={14} color="#10B981" style={{ flexShrink: 0 }} />
+                    {renamingStructureId === selectedStructure.id ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}>
+                        <input
+                          type="text"
+                          value={renameDraft}
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleCommitRename(selectedStructure.id);
+                            if (e.key === 'Escape') setRenamingStructureId(null);
+                          }}
+                          autoFocus
+                          placeholder="Enter facility name..."
+                          style={{
+                            padding: '2px 7px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: '#0F172A',
+                            border: '1px solid #10B981',
+                            borderRadius: '5px',
+                            outline: 'none',
+                            width: '100%',
+                            maxWidth: '220px'
+                          }}
+                        />
+                        <button
+                          onClick={() => handleCommitRename(selectedStructure.id)}
+                          title="Save facility name"
+                          style={{ padding: '3px 5px', backgroundColor: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        >
+                          <Check size={11} />
+                        </button>
+                        <button
+                          onClick={() => setRenamingStructureId(null)}
+                          title="Cancel rename"
+                          style={{ padding: '3px 5px', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {selectedStructure.name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Back button to Farm Layout */}
+                  <button
+                    onClick={() => setBuilderContainerView('farm_layout')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      backgroundColor: '#F1F5F9',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      color: '#0F172A',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
+                    }}
+                  >
+                    <ArrowLeft size={12} />
+                    <span>Back to Farm Layout</span>
+                  </button>
+                </div>
+
+                {/* Second header row: Rename button, Immutable Structure Type Badge, Coordinates */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  {renamingStructureId !== selectedStructure.id && (
+                    <button
+                      onClick={() => handleStartRename(selectedStructure)}
+                      title="Rename facility (keeps structure type)"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        padding: '2px 7px',
+                        backgroundColor: '#F8FAFC',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: '#475569',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Pencil size={10} />
+                      <span>Rename</span>
+                    </button>
+                  )}
+                  <span
+                    title="Immutable structure type"
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      color: '#065F46',
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      padding: '1px 6px',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    Type: {getStructureTypeLabel(selectedStructure.type)}
                   </span>
                   <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B', fontFamily: 'monospace', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: '4px' }}>
                     Pos: ({selectedStructure.tileX}, {selectedStructure.tileY})
                   </span>
                 </div>
-
-                {/* Back button to Farm Layout */}
-                <button
-                  onClick={() => setBuilderContainerView('farm_layout')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '3px 8px',
-                    backgroundColor: '#F1F5F9',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    color: '#0F172A',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <ArrowLeft size={12} />
-                  <span>Back to Farm Layout</span>
-                </button>
               </div>
 
               {/* Building Geometry Controls: Size W x L, Move, Rotate, Remove (NO Inspect Controller here!) */}
@@ -3149,11 +3295,22 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             textAlign: 'center'
           }}
         >
-          {/* Facility Name & Hardware Badge - CENTERED */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          {/* Facility Name, Structure Type Badge & Hardware Badge - CENTERED */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <Cpu size={14} color="#10B981" />
             <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
               {selectedStructure.name}
+            </span>
+            <span style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '1px 6px',
+              borderRadius: '4px',
+              backgroundColor: '#F1F5F9',
+              color: '#475569',
+              flexShrink: 0
+            }}>
+              {getStructureTypeLabel(selectedStructure.type)}
             </span>
             <span style={{
               fontSize: '10px',
@@ -3342,7 +3499,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #334155', paddingBottom: '6px' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: '#FFFFFF' }}>{hoveredStructure.name}</div>
-                <div style={{ fontSize: '10px', color: '#94A3B8' }}>{hoveredStructure.zone} · {hoveredStructure.crop}</div>
+                <div style={{ fontSize: '10px', color: '#94A3B8' }}>{getStructureTypeLabel(hoveredStructure.type)} · {hoveredStructure.crop}</div>
               </div>
               <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
                 {hoveredStructure.controller.status}
@@ -3466,30 +3623,93 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                   boxShadow: isSel ? '0 2px 8px rgba(16,185,129,0.12)' : 'none'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                    <div style={{
-                      width: '7px',
-                      height: '7px',
-                      borderRadius: '50%',
-                      backgroundColor: isAttn ? '#F59E0B' : '#10B981',
-                      flexShrink: 0
-                    }} />
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {struct.name.split('·')[0].trim()}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: isAttn ? '#F59E0B' : '#10B981' }}>
-                      {struct.metrics.ec.toFixed(1)} mS
-                    </span>
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                  {renamingStructureId === struct.id ? (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}
+                    >
+                      <input
+                        type="text"
+                        value={renameDraft}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCommitRename(struct.id);
+                          if (e.key === 'Escape') setRenamingStructureId(null);
+                        }}
+                        autoFocus
+                        style={{
+                          padding: '2px 6px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#0F172A',
+                          border: '1px solid #10B981',
+                          borderRadius: '4px',
+                          outline: 'none',
+                          width: '100%',
+                          minWidth: 0
+                        }}
+                      />
+                      <button
+                        onClick={() => handleCommitRename(struct.id)}
+                        title="Save name"
+                        style={{ padding: '2px 4px', backgroundColor: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                      >
+                        <Check size={10} />
+                      </button>
+                      <button
+                        onClick={() => setRenamingStructureId(null)}
+                        title="Cancel"
+                        style={{ padding: '2px 4px', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          backgroundColor: isAttn ? '#F59E0B' : '#10B981',
+                          flexShrink: 0
+                        }} />
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {struct.name}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartRename(struct);
+                          }}
+                          title="Rename facility (keeps structure type)"
+                          style={{
+                            padding: '2px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#94A3B8',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <Pencil size={10} />
+                        </button>
+                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', color: isAttn ? '#F59E0B' : '#10B981' }}>
+                          {struct.metrics.ec.toFixed(1)} mS
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '10px', color: '#64748B' }}>
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
-                    {struct.crop.split('(')[0].trim()}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '10px', color: '#64748B', gap: '6px' }}>
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {getStructureTypeLabel(struct.type)} · {struct.crop.split('(')[0].trim()}
                   </span>
-                  <span style={{ fontFamily: 'monospace' }}>{struct.controller.doseCountHour} DC/h</span>
+                  <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{struct.controller.doseCountHour} DC/h</span>
                 </div>
               </div>
             );
