@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Search, 
   Bell, 
@@ -9,6 +9,7 @@ import {
   ChevronRight, 
   ChevronLeft,
   ChevronDown,
+  Check,
   Sparkles, 
   Flame, 
   TrendingUp,
@@ -55,15 +56,19 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
 
   // Multi-Farm Location State (Growers with multiple farms)
   const [currentFarmIndex, setCurrentFarmIndex] = useState<number>(0);
+  const [isFarmDropdownOpen, setIsFarmDropdownOpen] = useState<boolean>(false);
+  const farmDropdownRef = useRef<HTMLDivElement | null>(null);
   const currentFarm = FARMS_DATA[currentFarmIndex] || FARMS_DATA[0];
 
-  const handlePrevFarm = () => {
-    setCurrentFarmIndex((prev) => (prev - 1 + FARMS_DATA.length) % FARMS_DATA.length);
-  };
-
-  const handleNextFarm = () => {
-    setCurrentFarmIndex((prev) => (prev + 1) % FARMS_DATA.length);
-  };
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (farmDropdownRef.current && !farmDropdownRef.current.contains(e.target as Node)) {
+        setIsFarmDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', color: '#0F172A', display: 'flex' }}>
@@ -407,103 +412,95 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
           flexWrap: 'wrap',
           gap: '16px'
         }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div ref={farmDropdownRef} style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.03em' }}>
                 {currentFarm.name}
               </h1>
-              {/* Previous & Next Farm Navigation Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <button
-                  onClick={handlePrevFarm}
-                  title="Previous Farm Location"
+              {/* Icon-Only Arrow Dropdown Button to Change Farm */}
+              <button
+                onClick={() => setIsFarmDropdownOpen((prev) => !prev)}
+                title="Switch Farm Location"
+                aria-label="Switch Farm Location"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '28px',
+                  height: '28px',
+                  backgroundColor: isFarmDropdownOpen ? '#0F172A' : '#F8FAFC',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: isFarmDropdownOpen ? '#FFFFFF' : '#0F172A',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <ChevronDown
+                  size={16}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '4px 8px',
-                    backgroundColor: '#F1F5F9',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#0F172A'
+                    transform: isFarmDropdownOpen ? 'rotate(180deg)' : 'none',
+                    transition: 'transform 0.15s ease'
                   }}
-                >
-                  <ChevronLeft size={14} />
-                  <span>Prev</span>
-                </button>
-                <button
-                  onClick={handleNextFarm}
-                  title="Next Farm Location"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '4px 8px',
-                    backgroundColor: '#F1F5F9',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#0F172A'
-                  }}
-                >
-                  <span>Next</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
+                />
+              </button>
             </div>
             <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>
               {currentFarm.location} · {currentFarm.gridCols}×{currentFarm.gridRows} Grid · {currentFarm.stats.activeControllers} Connected Controllers · {currentFarm.stats.crop}
             </p>
-          </div>
 
-          {/* Farm Estate Selection Dropdown (Replaces confusing Zone tabs) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
-              Select Farm:
-            </span>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={currentFarmIndex}
-                onChange={(e) => setCurrentFarmIndex(Number(e.target.value))}
-                style={{
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  padding: '8px 36px 8px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #CBD5E1',
-                  backgroundColor: '#FFFFFF',
-                  color: '#0F172A',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  outline: 'none',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  minWidth: '260px'
-                }}
-              >
-                {FARMS_DATA.map((farm, idx) => (
-                  <option key={farm.id} value={idx}>
-                    {farm.name} ({farm.gridCols}×{farm.gridRows}) · {farm.location.split(',')[0]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={15}
-                color="#64748B"
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none'
-                }}
-              />
-            </div>
+            {/* Farm Switcher Dropdown Menu */}
+            {isFarmDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: '40px',
+                left: 0,
+                minWidth: '340px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '12px',
+                border: '1px solid #CBD5E1',
+                boxShadow: '0 16px 32px -8px rgba(15, 23, 42, 0.18)',
+                padding: '6px',
+                zIndex: 80
+              }}>
+                {FARMS_DATA.map((farm, idx) => {
+                  const isActive = idx === currentFarmIndex;
+                  return (
+                    <button
+                      key={farm.id}
+                      onClick={() => {
+                        setCurrentFarmIndex(idx);
+                        setIsFarmDropdownOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        padding: '9px 12px',
+                        backgroundColor: isActive ? '#F1F5F9' : 'transparent',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'background-color 0.12s ease'
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
+                          {farm.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                          {farm.location} · {farm.gridCols}×{farm.gridRows} · {farm.stats.crop}
+                        </div>
+                      </div>
+                      {isActive && <Check size={15} color="#10B981" style={{ flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
 
