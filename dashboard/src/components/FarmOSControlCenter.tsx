@@ -22,9 +22,6 @@ import { FarmDigitalTwinMap, TileStructure, FARMS_DATA, FarmLocationData } from 
 import { ExecutiveAnalyticsDashboard } from './ExecutiveAnalyticsDashboard';
 import { FarmOutputAnalytics } from './FarmOutputAnalytics';
 import { DoseSuggestions } from './DoseSuggestions';
-import { ActuatorMatrix } from './ActuatorMatrix';
-import { TelemetryChart } from './TelemetryChart';
-import { AlarmsFeed } from './AlarmsFeed';
 import type { ZoneSetpoint, ActuatorState, AlarmEvent } from '@autogrow/shared';
 
 interface FarmOSControlCenterProps {
@@ -41,16 +38,16 @@ interface FarmOSControlCenterProps {
 }
 
 export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
-  metrics,
-  actuators,
-  active_alarms,
+  metrics: _metrics,
+  actuators: _actuators,
+  active_alarms: _active_alarms,
   setpoint,
   connectionStatus,
   onToggleViewMode,
   onOpenSetpoints,
   onTriggerCommand,
   onSaveSetpoint,
-  onAcknowledgeAlarm
+  onAcknowledgeAlarm: _onAcknowledgeAlarm
 }) => {
   // Navigation tabs (Unified: Overview is combined with 3D map)
   const [navTab, setNavTab] = useState<'map' | 'controllers' | 'harvest' | 'analytics'>('map');
@@ -843,40 +840,6 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
                 onOpenControllersTab={() => setNavTab('controllers')}
                 onOpenHarvestTab={() => setNavTab('harvest')}
               />
-
-              {/* 5. Integrated SCADA Live Feeds & Telemetry (Unified with the 3D Overview) */}
-              <div style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '12px',
-                border: '1px solid #E2E8F0',
-                padding: '24px',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Activity size={18} color="#10B981" />
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
-                        Live Operations & Telemetry Ledger · {currentFarm.name}
-                      </h3>
-                      <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748B' }}>
-                        Direct edge actuator overrides, active safety alerts, and continuous sensor streams.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <ActuatorMatrix actuators={actuators} onTriggerCommand={onTriggerCommand} />
-                    <AlarmsFeed alarms={active_alarms} onAcknowledgeAlarm={onAcknowledgeAlarm} />
-                  </div>
-
-                  <div>
-                    <TelemetryChart currentMetricValues={metrics} />
-                  </div>
-                </div>
-              </div>
             </>
           )}
 
