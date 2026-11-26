@@ -710,6 +710,8 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
     setStructures(currentFarm.structures);
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });
+    setSidebarLevel('facilities');
+    setInspectedControllerId(null);
     if (currentFarm.structures.length > 0) {
       setSelectedId(currentFarm.structures[0].id);
     }
@@ -865,8 +867,12 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   const [saveToast, setSaveToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Layout Synced to Edge Controllers!');
 
-  // Facilities sub-panel dock position: 'right' (default) or 'left' (toggleable)
-  const [facilitiesPosition, setFacilitiesPosition] = useState<'right' | 'left'>('right');
+  // Facilities sub-panel dock position: 'left' (default) or 'right' (toggleable)
+  const [facilitiesPosition, setFacilitiesPosition] = useState<'right' | 'left'>('left');
+
+  // 3-Level Sidebar Drill-Down: 'facilities' -> 'controllers' -> 'sensors'
+  const [sidebarLevel, setSidebarLevel] = useState<'facilities' | 'controllers' | 'sensors'>('facilities');
+  const [inspectedControllerId, setInspectedControllerId] = useState<string | null>(null);
 
   // Track unsaved changes in builder mode & inline facility rename
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
@@ -948,6 +954,11 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const selectedStructure = structures.find(s => s.id === selectedId) || structures[0];
   const hoveredStructure = structures.find(s => s.id === hoveredId);
+  const selectedControllers = selectedStructure ? ensureControllers(selectedStructure) : [];
+  const activeInspectedController =
+    selectedControllers.find(c => (c.id || c.serial) === inspectedControllerId) ||
+    selectedControllers[0] ||
+    null;
 
   // Camera pan limits: tight wiggle when zoomed out, full exploration when zoomed in or on large grids
   const getPanLimits = (zoom: number, cols: number = gridCols, rows: number = gridRows) => {
@@ -1247,6 +1258,10 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
   const handleStructureClick = (s: TileStructure) => {
     if (suppressClickRef.current) return;
     setSelectedId(s.id);
+    setInspectedControllerId(null);
+    if (sidebarLevel === 'sensors') {
+      setSidebarLevel('controllers');
+    }
     onSelectStructure?.(s);
     if (activeTab === 'build') {
       setBuilderContainerView('building_info');
@@ -3300,44 +3315,74 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                   color: '#10B981',
                   flexShrink: 0
                 }}>
-                  {selectedStructure.controller.model}
+                  {selectedControllers.length > 1
+                    ? `${selectedControllers.length} Controllers · ${activeInspectedController?.model || selectedStructure.controller.model}`
+                    : (activeInspectedController?.model || selectedStructure.controller.model)}
                 </span>
               </div>
 
               {/* Real-time Telemetry Metrics - CENTERED */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '11px', color: '#64748B', flexWrap: 'wrap' }}>
-                <span>Serial: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.serial}</strong></span>
-                <span>Wi-Fi: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{selectedStructure.controller.rssi} dBm</strong></span>
+                <span>Serial: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{activeInspectedController?.serial || selectedStructure.controller.serial}</strong></span>
+                <span>Wi-Fi: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{activeInspectedController?.rssi ?? selectedStructure.controller.rssi} dBm</strong></span>
                 <span>EC: <strong style={{ color: '#10B981', fontFamily: 'monospace' }}>{selectedStructure.metrics.ec.toFixed(2)} mS</strong></span>
                 <span>pH: <strong style={{ color: '#2563EB', fontFamily: 'monospace' }}>{selectedStructure.metrics.ph.toFixed(2)}</strong></span>
                 <span>VPD: <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>{selectedStructure.metrics.vpd.toFixed(2)} kPa</strong></span>
               </div>
 
-              {/* Inspect Controller Button - CENTERED */}
-              <button
-                onClick={() => {
-                  setIsHardwareModalOpen(true);
-                  playSfx('select');
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '5px 16px',
-                  backgroundColor: '#0F172A',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  color: '#FFFFFF',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(15,23,42,0.15)',
-                  marginTop: '2px'
-                }}
-              >
-                <Sliders size={12} color="#10B981" />
-                <span>Inspect Controller</span>
-              </button>
+              {/* Inspect Controller / Open Side Menu Drill-Down - CENTERED */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
+                <button
+                  data-testid="hud-inspect-controller-btn"
+                  onClick={() => {
+                    setSidebarLevel('controllers');
+                    setInspectedControllerId(null);
+                    playSfx('select');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 14px',
+                    backgroundColor: '#0F172A',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(15,23,42,0.15)'
+                  }}
+                >
+                  <Sliders size={12} color="#10B981" />
+                  <span>
+                    {selectedControllers.length > 1
+                      ? `Inspect Controllers (${selectedControllers.length})`
+                      : 'Inspect Controller'}
+                  </span>
+                </button>
+                {sidebarLevel !== 'facilities' && (
+                  <button
+                    onClick={() => setIsHardwareModalOpen(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 11px',
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#0F172A',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Cpu size={12} color="#10B981" />
+                    <span>Hardware & Dosing</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -3591,21 +3636,97 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
         zIndex: 10,
         boxShadow: facilitiesPosition === 'right' ? '-4px 0 15px rgba(0,0,0,0.02)' : '4px 0 15px rgba(0,0,0,0.02)'
       }}>
-        {/* Submenu Header with Dock Left/Right Switcher */}
+        {/* Submenu Header with Return Buttons per Level & Dock Left/Right Switcher */}
         <div style={{
-          padding: '16px 16px 12px 16px',
+          padding: '14px 14px 12px 14px',
           borderBottom: '1px solid #F1F5F9',
           display: 'flex',
           flexDirection: 'column',
-          gap: '6px'
+          gap: '8px'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
-              Facilities
+          {/* Level Return Navigation Bar */}
+          {sidebarLevel === 'controllers' && selectedStructure && (
+            <button
+              data-testid="sidebar-back-to-facilities"
+              onClick={() => {
+                setSidebarLevel('facilities');
+                setInspectedControllerId(null);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 9px',
+                backgroundColor: '#F1F5F9',
+                border: '1px solid #CBD5E1',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 800,
+                color: '#0F172A',
+                cursor: 'pointer',
+                alignSelf: 'flex-start'
+              }}
+            >
+              <ArrowLeft size={12} />
+              <span>Back to Facilities</span>
+            </button>
+          )}
+
+          {sidebarLevel === 'sensors' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                data-testid="sidebar-back-to-controllers"
+                onClick={() => setSidebarLevel('controllers')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 9px',
+                  backgroundColor: '#F1F5F9',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  color: '#0F172A',
+                  cursor: 'pointer'
+                }}
+              >
+                <ArrowLeft size={12} />
+                <span>Back to Controllers</span>
+              </button>
+              <button
+                data-testid="sidebar-jump-facilities"
+                onClick={() => {
+                  setSidebarLevel('facilities');
+                  setInspectedControllerId(null);
+                }}
+                style={{
+                  padding: '5px 8px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '6px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: '#64748B',
+                  cursor: 'pointer'
+                }}
+              >
+                Facilities
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {sidebarLevel === 'facilities'
+                ? 'Facilities'
+                : sidebarLevel === 'controllers'
+                  ? 'Controllers'
+                  : 'Sensors'}
             </span>
             <button
               onClick={() => setFacilitiesPosition(p => p === 'right' ? 'left' : 'right')}
-              title={`Dock Facilities to ${facilitiesPosition === 'right' ? 'Left' : 'Right'}`}
+              title={`Dock Panel to ${facilitiesPosition === 'right' ? 'Left' : 'Right'}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -3618,6 +3739,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                 fontWeight: 700,
                 color: '#475569',
                 cursor: 'pointer',
+                flexShrink: 0,
                 transition: 'all 0.15s ease'
               }}
             >
@@ -3625,12 +3747,18 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
               <span>{facilitiesPosition === 'right' ? 'Dock Left' : 'Dock Right'}</span>
             </button>
           </div>
-          <div style={{ fontSize: '11px', color: '#64748B' }}>
-            {structures.length} active bays · {currentFarm.stats.status}
+          <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {sidebarLevel === 'facilities'
+              ? `${structures.length} active bays · ${currentFarm.stats.status}`
+              : sidebarLevel === 'controllers' && selectedStructure
+                ? `${selectedStructure.name} · ${selectedControllers.length} controller${selectedControllers.length === 1 ? '' : 's'}`
+                : activeInspectedController
+                  ? `${activeInspectedController.model} · ${activeInspectedController.serial}`
+                  : 'No controller selected'}
           </div>
         </div>
 
-        {/* Scrollable List of Farm Facilities */}
+        {/* 3-Level Scrollable Menu Content */}
         <div style={{
           flex: 1,
           overflowY: 'auto',
@@ -3639,13 +3767,16 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
           flexDirection: 'column',
           gap: '8px'
         }}>
-          {structures.map(struct => {
+          {/* LEVEL 1: FACILITIES LIST */}
+          {sidebarLevel === 'facilities' && structures.map(struct => {
             const isSel = selectedId === struct.id;
             const isAttn = struct.controller.status === 'ATTENTION';
+            const structCtrls = ensureControllers(struct);
 
             return (
               <div
                 key={struct.id}
+                data-testid={`facility-card-${struct.id}`}
                 onClick={() => handleStructureClick(struct)}
                 style={{
                   padding: '10px 12px',
@@ -3739,15 +3870,207 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                     </>
                   )}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '10px', color: '#64748B', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px', fontSize: '10px', color: '#64748B', gap: '6px' }}>
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {getStructureTypeLabel(struct.type)} · {struct.crop.split('(')[0].trim()}
                   </span>
-                  <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{struct.controller.doseCountHour} DC/h</span>
+                  <button
+                    type="button"
+                    data-testid={`facility-open-controllers-${struct.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStructureClick(struct);
+                      setInspectedControllerId(null);
+                      setSidebarLevel('controllers');
+                    }}
+                    title="Inspect controllers assigned to this facility"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                      padding: '2px 6px',
+                      backgroundColor: isSel ? '#0F172A' : '#F8FAFC',
+                      color: isSel ? '#34D399' : '#334155',
+                      border: `1px solid ${isSel ? '#0F172A' : '#CBD5E1'}`,
+                      borderRadius: '4px',
+                      fontSize: '9.5px',
+                      fontWeight: 800,
+                      fontFamily: 'monospace',
+                      cursor: 'pointer',
+                      flexShrink: 0
+                    }}
+                  >
+                    <span>{structCtrls.length} Ctrl</span>
+                    <ChevronRight size={10} />
+                  </button>
                 </div>
               </div>
             );
           })}
+
+          {/* LEVEL 2: CONTROLLERS LIST FOR SELECTED FACILITY */}
+          {sidebarLevel === 'controllers' && selectedStructure && selectedControllers.map((ctrl, idx) => {
+            const ctrlKey = ctrl.id || ctrl.serial || `ctrl-${idx}`;
+            const isCtrlAttn = ctrl.status === 'ATTENTION';
+            const sensorCount = ctrl.sensors?.length || 0;
+
+            return (
+              <div
+                key={ctrlKey}
+                data-testid={`sidebar-controller-card-${idx}`}
+                onClick={() => {
+                  setInspectedControllerId(ctrlKey);
+                  setSidebarLevel('sensors');
+                  playSfx('select');
+                }}
+                style={{
+                  padding: '11px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                    <span style={{
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      backgroundColor: isCtrlAttn ? '#F59E0B' : '#10B981',
+                      flexShrink: 0
+                    }} />
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {ctrl.model}
+                    </span>
+                  </div>
+                  <ChevronRight size={14} color="#64748B" style={{ flexShrink: 0 }} />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', fontFamily: 'monospace', color: '#64748B' }}>
+                  <span>{ctrl.serial}</span>
+                  <span style={{
+                    fontWeight: 800,
+                    color: isCtrlAttn ? '#D97706' : '#059669'
+                  }}>
+                    {ctrl.status}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '5px', borderTop: '1px solid #F1F5F9', fontSize: '10px', color: '#475569' }}>
+                  <span style={{ fontFamily: 'monospace' }}>{ctrl.ipAddress} · {ctrl.rssi} dBm</span>
+                  <span style={{
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    backgroundColor: '#ECFDF5',
+                    color: '#065F46',
+                    border: '1px solid #A7F3D0'
+                  }}>
+                    {sensorCount} Sensors ›
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* LEVEL 3: SENSORS LIST FOR CLICKED CONTROLLER */}
+          {sidebarLevel === 'sensors' && activeInspectedController && (
+            <>
+              <div style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: '#0F172A',
+                color: '#FFFFFF',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10.5px', fontFamily: 'monospace', color: '#34D399' }}>
+                  <span>{activeInspectedController.serial}</span>
+                  <span>{activeInspectedController.ipAddress}</span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#CBD5E1' }}>
+                  Dose Rate: <strong style={{ color: '#FFFFFF', fontFamily: 'monospace' }}>{activeInspectedController.doseCountHour} DC/h</strong> · FW {activeInspectedController.firmware}
+                </div>
+                <button
+                  type="button"
+                  data-testid="sidebar-open-hardware-modal-btn"
+                  onClick={() => setIsHardwareModalOpen(true)}
+                  style={{
+                    marginTop: '2px',
+                    padding: '6px 10px',
+                    backgroundColor: '#10B981',
+                    color: '#0F172A',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <Sliders size={12} />
+                  <span>Open Hardware & Dosing</span>
+                </button>
+              </div>
+
+              {(activeInspectedController.sensors || []).length === 0 ? (
+                <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: '#F8FAFC', border: '1px dashed #CBD5E1', fontSize: '11px', color: '#64748B', textAlign: 'center' }}>
+                  No sensors attached to this controller yet. Open Builder mode to attach probes.
+                </div>
+              ) : (
+                (activeInspectedController.sensors || []).map((sensor) => (
+                  <div
+                    key={sensor.id}
+                    data-testid={`sidebar-sensor-item-${sensor.type}`}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E2E8F0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0F172A' }}>
+                        {sensor.name}
+                      </span>
+                      <span style={{ fontSize: '10px', fontFamily: 'monospace', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#F1F5F9', color: '#475569' }}>
+                        {sensor.pin}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 900, fontFamily: 'monospace', color: '#10B981' }}>
+                        {sensor.value} <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700 }}>{sensor.unit}</span>
+                      </span>
+                      <span style={{
+                        fontSize: '9.5px',
+                        fontWeight: 800,
+                        fontFamily: 'monospace',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: sensor.status === 'NORMAL' ? '#ECFDF5' : '#FEF3C7',
+                        color: sensor.status === 'NORMAL' ? '#065F46' : '#B45309'
+                      }}>
+                        {sensor.status}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -3856,7 +4179,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
       )}
 
       {/* 9. Autogrow Hardware Diagnostic Modal */}
-      {isHardwareModalOpen && selectedStructure && (
+      {isHardwareModalOpen && selectedStructure && activeInspectedController && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -3890,7 +4213,7 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Cpu size={18} color="#10B981" />
                 <span style={{ fontSize: '15px', fontWeight: 800 }}>
-                  {selectedStructure.controller.model} Hardware Panel
+                  {activeInspectedController.model} Hardware Panel
                 </span>
               </div>
               <button
@@ -3906,28 +4229,28 @@ export const FarmDigitalTwinMap: React.FC<FarmDigitalTwinMapProps> = ({
                 <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>SERIAL NUMBER</div>
                   <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', fontFamily: 'monospace', marginTop: '2px' }}>
-                    {selectedStructure.controller.serial}
+                    {activeInspectedController.serial}
                   </div>
                 </div>
 
                 <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>IP & FIRMWARE</div>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-                    {selectedStructure.controller.ipAddress} · {selectedStructure.controller.firmware}
+                    {activeInspectedController.ipAddress} · {activeInspectedController.firmware}
                   </div>
                 </div>
 
                 <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>HOURLY DOSE COUNT (DC/h)</div>
                   <div style={{ fontSize: '18px', fontWeight: 800, color: '#10B981', fontFamily: 'monospace', marginTop: '2px' }}>
-                    {selectedStructure.controller.doseCountHour} doses/hr
+                    {activeInspectedController.doseCountHour} doses/hr
                   </div>
                 </div>
 
                 <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>TOTAL DOSE COUNT (DCT)</div>
                   <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563EB', fontFamily: 'monospace', marginTop: '2px' }}>
-                    {selectedStructure.controller.doseCountTotal} lifetime
+                    {activeInspectedController.doseCountTotal} lifetime
                   </div>
                 </div>
               </div>
