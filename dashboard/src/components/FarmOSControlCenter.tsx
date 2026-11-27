@@ -25,6 +25,10 @@ import { DoseSuggestions } from './DoseSuggestions';
 import type { ZoneSetpoint, ActuatorState, AlarmEvent } from '@autogrow/shared';
 
 interface FarmOSControlCenterProps {
+  farms?: FarmLocationData[];
+  onFarmsChange?: React.Dispatch<React.SetStateAction<FarmLocationData[]>>;
+  activeFarmIndex?: number;
+  onActiveFarmIndexChange?: (idx: number) => void;
   metrics: Record<string, number>;
   actuators: Record<string, ActuatorState>;
   active_alarms: AlarmEvent[];
@@ -38,6 +42,10 @@ interface FarmOSControlCenterProps {
 }
 
 export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
+  farms: controlledFarms,
+  onFarmsChange,
+  activeFarmIndex: controlledFarmIndex,
+  onActiveFarmIndexChange,
   metrics: _metrics,
   actuators: _actuators,
   active_alarms: _active_alarms,
@@ -56,8 +64,14 @@ export const FarmOSControlCenter: React.FC<FarmOSControlCenterProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Multi-Farm Location State (Growers with multiple farms)
-  const [farms, setFarms] = useState<FarmLocationData[]>(() => FARMS_DATA.map((f) => ({ ...f, isActive: true })));
-  const [currentFarmIndex, setCurrentFarmIndex] = useState<number>(0);
+  const [internalFarms, setInternalFarms] = useState<FarmLocationData[]>(() =>
+    FARMS_DATA.map((f) => ({ ...f, isActive: true }))
+  );
+  const [internalFarmIndex, setInternalFarmIndex] = useState<number>(0);
+  const farms = controlledFarms ?? internalFarms;
+  const setFarms = onFarmsChange ?? setInternalFarms;
+  const currentFarmIndex = controlledFarmIndex ?? internalFarmIndex;
+  const setCurrentFarmIndex = onActiveFarmIndexChange ?? setInternalFarmIndex;
   const [isFarmDropdownOpen, setIsFarmDropdownOpen] = useState<boolean>(false);
   const farmDropdownRef = useRef<HTMLDivElement | null>(null);
   const currentFarm = farms[currentFarmIndex] || farms[0];

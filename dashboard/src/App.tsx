@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import { PhoneAppView } from './components/PhoneAppView';
 import { FarmOSControlCenter } from './components/FarmOSControlCenter';
+import { FARMS_DATA, type FarmLocationData } from './components/FarmDigitalTwinMap';
 import { SetpointsModal } from './components/SetpointsModal';
 import { useFarmWebSocket } from './hooks/useFarmWebSocket';
 import type { ZoneSetpoint } from '@autogrow/shared';
 
 export default function App() {
   const { metrics, actuators, active_alarms, setpoint, connectionStatus } = useFarmWebSocket();
+  const [farms, setFarms] = useState<FarmLocationData[]>(() =>
+    FARMS_DATA.map((f) => ({ ...f, isActive: true }))
+  );
+  const [currentFarmIndex, setCurrentFarmIndex] = useState<number>(0);
   const [isSetpointsOpen, setIsSetpointsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop'>('desktop');
   const [isMobileScreen, setIsMobileScreen] = useState(false);
@@ -88,6 +93,10 @@ export default function App() {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#FFFFFF' }}>
         <PhoneAppView
+          farms={farms}
+          onFarmsChange={setFarms}
+          activeFarmIndex={currentFarmIndex}
+          onActiveFarmIndexChange={setCurrentFarmIndex}
           metrics={metrics}
           actuators={actuators}
           active_alarms={active_alarms}
@@ -138,6 +147,10 @@ export default function App() {
           </div>
 
           <PhoneAppView
+            farms={farms}
+            onFarmsChange={setFarms}
+            activeFarmIndex={currentFarmIndex}
+            onActiveFarmIndexChange={setCurrentFarmIndex}
             metrics={metrics}
             actuators={actuators}
             active_alarms={active_alarms}
@@ -151,6 +164,10 @@ export default function App() {
       ) : (
         /* Full Farm Digital Twin Control Center (WarehouseOS Style with 1x1 Tile Grid) */
         <FarmOSControlCenter
+          farms={farms}
+          onFarmsChange={setFarms}
+          activeFarmIndex={currentFarmIndex}
+          onActiveFarmIndexChange={setCurrentFarmIndex}
           metrics={metrics}
           actuators={actuators}
           active_alarms={active_alarms}
